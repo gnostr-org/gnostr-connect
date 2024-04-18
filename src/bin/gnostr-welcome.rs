@@ -22,6 +22,10 @@ use tui::{
     Terminal,
 };
 
+const APP_NAME:&str = env!("CARGO_PKG_NAME");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+const ICON_FONT_SIZE: u16 = 12;
 const DB_PATH: &str = "./data/db.json";
 
 #[derive(Error, Debug)]
@@ -92,11 +96,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
+
+    //MENU TITLES
+
     let menu_titles = vec!["Home", "Pets", "Add", "Delete", "Quit"];
     let mut active_menu_item = MenuItem::Home;
     let mut pet_list_state = ListState::default();
     pet_list_state.select(Some(0));
 
+    //LOOP
     loop {
         terminal.draw(|rect| {
             let size = rect.size();
@@ -113,14 +121,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )
                 .split(size);
 
-            let copyright = Paragraph::new("pet-CLI 2020 - all rights reserved")
+            let copyright = Paragraph::new(format!(" {} FOOTER",APP_NAME))
                 .style(Style::default().fg(Color::LightCyan))
-                .alignment(Alignment::Center)
+                .alignment(Alignment::Left)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
                         .style(Style::default().fg(Color::White))
-                        .title("Copyright")
+                        .title(format!(" {} v{}",APP_NAME,VERSION))
                         .border_type(BorderType::Plain),
                 );
 
@@ -212,148 +220,143 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn render_home<'a>() -> Paragraph<'a> {
     let home = Paragraph::new(vec![
 
-Spans::from(vec![Span::raw("
-******
-")]),
-Spans::from(vec![Span::raw("
-**********
-")]),
-Spans::from(vec![Span::raw("
-**************
-")]),
-Spans::from(vec![Span::raw("
-******************
-")]),
-Spans::from(vec![Span::raw("
-*********************
-")]),
-Spans::from(vec![Span::raw("
-***********************
-")]),
-Spans::from(vec![Span::raw("
-   ************************
-")]),
-Spans::from(vec![Span::raw("
-*       ************************
-")]),
-Spans::from(vec![Span::raw("
-*****       ************************
-")]),
-Spans::from(vec![Span::raw("
-*********       ************************
-")]),
-Spans::from(vec![Span::raw("
-************        *   *******************
-")]),
-Spans::from(vec![Span::raw("
-****************             ******************
-")]),
-Spans::from(vec![Span::raw("
-*******************            *******************
-")]),
-Spans::from(vec![Span::raw("
-*********************             ********************
-")]),
-Spans::from(vec![Span::raw("
-***********************             **********************
-")]),
-Spans::from(vec![Span::raw("
-*************************             ************************
-")]),
-Spans::from(vec![Span::raw("
-*****************************             ***********************
-")]),
-Spans::from(vec![Span::raw("
-*********************************             ***********************
-")]),
-Spans::from(vec![Span::raw("
-**********************************     **       ************************
-")]),
-Spans::from(vec![Span::raw("
-************************************     ****       ************************
-")]),
-Spans::from(vec![Span::raw("
-**************************************     ******            *******************
-")]),
-Spans::from(vec![Span::raw("
-****************************************     ********            *******************
-")]),
-Spans::from(vec![Span::raw("
-*****************************************     *********            *******************
-")]),
-Spans::from(vec![Span::raw("
-*****************************************     ********             *******************
-")]),
-Spans::from(vec![Span::raw("
-*****************************************     *********            *******************
-")]),
-Spans::from(vec![Span::raw("
-****************************************     *********            *****************
-")]),
-Spans::from(vec![Span::raw("
-**************************************     ***********        ******************
-")]),
-Spans::from(vec![Span::raw("
-************************************     ***********************************
-")]),
-Spans::from(vec![Span::raw("
-**********************************     *********************************
-")]),
-Spans::from(vec![Span::raw("
-********************************     *******************************
-")]),
-Spans::from(vec![Span::raw("
-****************************        ****************************
-")]),
-Spans::from(vec![Span::raw("
-**************************           *************************
-")]),
-Spans::from(vec![Span::raw("
-***********************            ***********************
-")]),
-Spans::from(vec![Span::raw("
-*********************             ********************
-")]),
-Spans::from(vec![Span::raw("
-*******************            *******************
-")]),
-Spans::from(vec![Span::raw("
-******************          ******************
-")]),
-Spans::from(vec![Span::raw("
-******************      ******************
-")]),
-Spans::from(vec![Span::raw("
-****************************************
-")]),
-Spans::from(vec![Span::raw("
-************************************
-")]),
-Spans::from(vec![Span::raw("
-********************************
-")]),
-Spans::from(vec![Span::raw("
-****************************
-")]),
-Spans::from(vec![Span::raw("
-************************
-")]),
-Spans::from(vec![Span::raw("
-********************
-")]),
-Spans::from(vec![Span::raw("
-******************
-")]),
-Spans::from(vec![Span::raw("
-**************
-")]),
-Spans::from(vec![Span::raw("
-**********
-")]),
-Spans::from(vec![Span::raw("
-******
-")]),
+Spans::from(vec![Span::styled(
+    "******",
+    Style::default().fg(Color::Magenta)
+)]),
 
+//1
+Spans::from(vec![Span::raw("
+██████
+")]),
+//2
+Spans::from(vec![Span::raw("
+██████████
+")]),
+//3
+Spans::from(vec![Span::raw("
+██████████████
+")]),
+//4
+Spans::from(vec![Span::raw("
+█████████████████
+")]),
+//5
+Spans::from(vec![Span::raw("
+█████████████████████
+")]),
+Spans::from(vec![Span::raw("
+   █████████████████████
+")]),
+Spans::from(vec![Span::raw("
+       █████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████      ██████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████      ██████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████          ██████████████████
+")]),
+Spans::from(vec![Span::raw("
+███████████████            █████████████████
+")]),
+Spans::from(vec![Span::raw("
+██████████████████            █████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████            ███████████████████
+")]),
+Spans::from(vec![Span::raw("
+██████████████████████           █████████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████████████            █████████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████████████████           ██████████████████████
+")]),
+Spans::from(vec![Span::raw("
+███████████████████████████████  1  █       ██████████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████████████████████  2  ███       ██████████████████████
+")]),
+Spans::from(vec![Span::raw("
+██████████████████████████████████  3  █████           █████████████████
+")]),
+//
+Spans::from(vec![Span::raw("
+████████████████████████████████████     ███████           █████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████████████████████  5  ████████           █████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████████████████████████     ███████            █████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████████████████████     ████████           ████████████████
+")]),
+Spans::from(vec![Span::raw("
+██████████████████████████████████     █████████        ████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████████████████     ███████████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+███████████████████████████████     ██████████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████████████████     ████████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████████████        █████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+██████████████████████          ██████████████████████
+")]),
+Spans::from(vec![Span::raw("
+███████████████████            ███████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████            █████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████          ████████████████
+")]),
+Spans::from(vec![Span::raw("
+█████████████████      █████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████████
+")]),
+Spans::from(vec![Span::raw("
+████████████████
+")]),
+Spans::from(vec![Span::raw("
+██████████████
+")]),
+Spans::from(vec![Span::raw("
+██████████
+")]),
+Spans::from(vec![Span::raw("
+██████
+")]),
 
 
         Spans::from(vec![Span::styled(
@@ -368,7 +371,8 @@ Spans::from(vec![Span::raw("
         Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::Magenta))
-            .title("gnostr")
+            //TODO git repo
+            .title("  gnostr  ")
             .border_type(BorderType::Plain),
     );
     home
