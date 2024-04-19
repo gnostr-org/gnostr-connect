@@ -1,7 +1,7 @@
 [package]
-name = "rust-commandline-example"
-version = "0.1.0"
-authors = ["Mario Zupan <mario@zupzup.org>"]
+name = "gnostr-dashboard"
+version = "0.0.0"
+authors = ["gnostr <admin@gnostr.org>"]
 edition = "2018"
 
 [dependencies]
