@@ -170,16 +170,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let (left, right) = render_pets(&pet_list_state);
                     rect.render_stateful_widget(left, pets_chunks[0], &mut pet_list_state);
                     rect.render_widget(right, pets_chunks[1]);
+
+                    //footer not persist after quit here
+                    rect.render_widget(copyright.clone(), chunks[2]);
+
                 }
             }
-            rect.render_widget(copyright, chunks[2]);
         })?;
 
         match rx.recv()? {
             Event::Input(event) => match event.code {
                 KeyCode::Char('q') => {
                     disable_raw_mode()?;
+                    //terminal.clear()?;
+                    render_home();
                     terminal.show_cursor()?;
+                    disable_raw_mode()?;
                     break;
                 }
                 KeyCode::Char('h') => active_menu_item = MenuItem::Home,
@@ -347,7 +353,7 @@ Spans::from(vec![Span::raw("
             Style::default().fg(Color::LightBlue),
         )]),
         Spans::from(vec![Span::raw("")]),
-        Spans::from(vec![Span::raw("Press 'p' to access pets, 'a' to add random new pets and 'd' to delete the currently selected pet.")]),
+        //Spans::from(vec![Span::raw("Press 'p' to access pets, 'a' to add random new pets and 'd' to delete the currently selected pet.")]),
     ])
     .alignment(Alignment::Center)
     .block(
