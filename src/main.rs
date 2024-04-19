@@ -292,10 +292,6 @@ Spans::from(vec![Span::raw("
 ")]),
 
 Spans::from(vec![Span::raw("
-█████████████████████████████████████  6  ███████            █████████████████
-")]),
-//
-Spans::from(vec![Span::raw("
 ████████████████████████████████████  7  ████████           ████████████████
 ")]),
 Spans::from(vec![Span::raw("
@@ -374,8 +370,9 @@ Spans::from(vec![Span::raw("
             .borders(Borders::ALL)
             //.style(Style::default().fg(Color::Magenta))
             //.style(Style::default().fg(Color::Black))
+            .style(Style::default().fg(Color::White))
             //.style(Style::default().fg(Color::Rgb(100,1,1)))
-            .style(Style::default().fg(Color::Rgb(255,1,1)))
+            //.style(Style::default().fg(Color::Rgb(255,1,1)))
             //TODO git repo
             .title("  gnostr  ")
             .border_type(BorderType::Plain),
