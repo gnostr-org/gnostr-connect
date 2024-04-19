@@ -234,6 +234,9 @@ fn render_home<'a>() -> Paragraph<'a> {
 //Spans::from(vec![Span::raw("
 //███████████████████████████████████████•███████████████████████████████████████
 //")]),
+Spans::from(vec![Span::raw("")]),
+Spans::from(vec![Span::raw("")]),
+Spans::from(vec![Span::raw("")]),
 Spans::from(vec![Span::raw("
  █•█ ")]),
 Spans::from(vec![Span::raw("
