@@ -30,7 +30,7 @@ import (
 const DiscoveryInterval = time.Hour
 
 // DiscoveryServiceTag is used in our mDNS advertisements to discover other chat peers.
-const DiscoveryServiceTag = "universal-connectivity"
+const DiscoveryServiceTag = "gnostr-connect"
 
 var SysMsgChan chan *ChatMessage
 
@@ -46,7 +46,7 @@ func NewDHT(ctx context.Context, host host.Host, bootstrapPeers []multiaddr.Mult
 		options = append(options, dht.Mode(dht.ModeServer))
 	}
 
-	options = append(options, dht.ProtocolPrefix("/universal-connectivity/lan"))
+	options = append(options, dht.ProtocolPrefix("/gnostr-connect/lan"))
 
 	kdht, err := dht.New(ctx, host, options...)
 	if err != nil {
@@ -119,12 +119,34 @@ func LogMsgf(f string, msg ...any) {
 
 func main() {
 	// parse some flags to set our nickname and the room to join
-	nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
-	roomFlag := flag.String("room", "universal-connectivity", "name of chat room to join")
+    // TODO:
+    // gnostr-chat --nick <string>
+    // use gnostr-user for now.
+	nickFlag := flag.String("nick", "gnostr-user", "nickname to use in chat. will be generated if empty")
+
+    // TODO:
+    // gnostr will create topic rooms based on git repo name <string>,
+    // topic branch or master/main,
+    // commit hash <sha1> and eventually <sha2>.
+    // other room names will be based on weeble/blockheight/wobble
+    // for a hybrid gnostr-chat/nostr timeline.
+	roomFlag := flag.String("room", "gnostr-connect", "name of chat room to join")
+	//topicFlag := flag.String("topic", "gnostr-connect", "name of topic chat to join")
+    // gnostr-chat --topic <string>
+    // gnostr-chat --topic <sha1>
+    // gnostr-chat --topic <sha2>
+    // gnostr-chat --topic <weeble>
+    // gnostr-chat --topic <weeble>/<blockheight>
+    // gnostr-chat --topic <weeble>/<blockheight>/<wobble>
+    // etc...
+
 	idPath := flag.String("identity", "identity.key", "path to the private key (PeerID) file")
 	certPath := flag.String("tls-cert-path", "", "path to the tls cert file (for websockets)")
 	keyPath := flag.String("tls-key-path", "", "path to the tls key file (for websockets")
+    // TODO:
+    //write to ~/.gnostr/chat/log
 	useLogger := flag.Bool("logger", false, "write logs to file")
+    // TODO:
 	headless := flag.Bool("headless", false, "run without chat UI")
 
 	var addrsToConnectTo stringSlice
@@ -213,7 +235,7 @@ func main() {
 	}
 
 	// setup peer discovery
-	go Discover(ctx, h, dht, "universal-connectivity")
+	go Discover(ctx, h, dht, "gnostr-connect")
 
 	// setup local mDNS discovery
 	if err := setupDiscovery(h); err != nil {
@@ -240,9 +262,9 @@ func main() {
 	LogMsgf("PeerID: %s", h.ID().String())
 	for _, addr := range h.Addrs() {
 		if *headless {
-			fmt.Printf("Listening on: %s/p2p/%s\n", addr.String(), h.ID())
+			fmt.Printf("Listening on:\n%s/p2p/%s\n", addr.String(), h.ID())
 		} else {
-			LogMsgf("Listening on: %s/p2p/%s", addr.String(), h.ID())
+			LogMsgf("Listening on:\n%s/p2p/%s", addr.String(), h.ID())
 		}
 	}
 

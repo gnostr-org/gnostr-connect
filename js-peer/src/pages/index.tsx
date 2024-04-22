@@ -118,8 +118,8 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Universal Connectivity</title>
-        <meta name="description" content="universal connectivity" />
+        <title>gnostr-connect</title>
+        <meta name="description" content="gnostr-connect" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -129,7 +129,7 @@ export default function Home() {
           <header>
             <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900 flex flex-row">
-                <p className="mr-4">Universal Connectivity</p>
+                <p className="mr-4">gnostr-connect</p>
                 <Image
                   src="/libp2p-hero.svg"
                   alt="libp2p logo"
