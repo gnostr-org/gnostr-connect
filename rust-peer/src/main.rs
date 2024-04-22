@@ -32,7 +32,9 @@ use tokio::fs;
 
 use crate::protocol::FileRequest;
 
-const TICK_INTERVAL: Duration = Duration::from_secs(15);
+use gnostr_bins::*;
+
+const TICK_INTERVAL: Duration = Duration::from_secs(10);//13
 const KADEMLIA_PROTOCOL_NAME: StreamProtocol =
     StreamProtocol::new("/universal-connectivity/lan/kad/1.0.0");
 const FILE_EXCHANGE_PROTOCOL: StreamProtocol =
@@ -146,8 +148,8 @@ async fn main() -> Result<()> {
                 )) => {
                     if message.topic == chat_topic_hash {
                         info!(
-                            "Received message from {:?}: {}",
-                            message.source,
+                            "{:?}: {}",
+                            message.source.unwrap().to_string(),
                             String::from_utf8(message.data).unwrap()
                         );
                         continue;
@@ -155,7 +157,8 @@ async fn main() -> Result<()> {
 
                     if message.topic == file_topic_hash {
                         let file_id = String::from_utf8(message.data).unwrap();
-                        info!("Received file {} from {:?}", file_id, message.source);
+                        info!("Received file {:?} from {}",
+                            message.source.unwrap(),file_id);
 
                         let request_id = swarm.behaviour_mut().request_response.send_request(
                             &message.source.unwrap(),
@@ -178,7 +181,7 @@ async fn main() -> Result<()> {
                     debug!("{peer_id} subscribed to {topic}");
                 }
                 SwarmEvent::Behaviour(BehaviourEvent::Identify(e)) => {
-                    info!("BehaviourEvent::Identify {:?}", e);
+                    //info!("BehaviourEvent::Identify {:?}", e);
 
                     if let identify::Event::Error { peer_id, error } = e {
                         match error {
@@ -275,9 +278,17 @@ async fn main() -> Result<()> {
                     debug!("Failed to run Kademlia bootstrap: {e:?}");
                 }
 
+                let weeble = gnostr_bins::get_weeble();
+                let blockheight = gnostr_bins::blockheight();
+                let wobble = gnostr_bins::get_wobble();
+
                 let message = format!(
-                    "Hello world! Sent from the rust-peer at: {:4}s",
-                    now.elapsed().as_secs_f64()
+                    "\"weeble\":{:?},\"blockheight\":{:?},\"wobble\":{:?}",
+                    weeble.unwrap().to_string(),
+                    blockheight.unwrap().to_string(),
+                    wobble.unwrap().to_string()
+                    //"Hello world! Sent from the rust-peer at: {:4}s",
+                    //now.elapsed().as_secs_f64()
                 );
 
                 if let Err(err) = swarm.behaviour_mut().gossipsub.publish(
