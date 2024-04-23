@@ -1,12 +1,16 @@
 package main
-
 import (
 	"fmt"
 	"io"
 	"log"
 	"time"
+        "os/exec"
+    "runtime"
 
-	"github.com/gdamore/tcell/v2"
+
+    //"github.com/go-git/go-git/v5"
+    //"github.com/go-git/go-git/v5/plumbing/object"
+    "github.com/gdamore/tcell/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rivo/tview"
 )
@@ -26,16 +30,86 @@ type ChatUI struct {
 	doneCh  chan struct{}
 }
 
+
+
+//func git_rev_parse_head() {
+//
+//    // here we perform the pwd command.
+//    // we can store the output of this in our out variable
+//    // and catch any errors in err
+//    out, err := exec.Command("git" , "rev-parse" ,"HEAD").Output()
+//
+//    // if there is an error with our execution
+//    // handle it here
+//    if err != nil {
+//        fmt.Printf("%s", err)
+//    }
+//    // as the out variable defined above is of type []byte we need to convert
+//    // this to a string or else we will see garbage printed out in our console
+//    // this is how we convert it to a string
+//    //fmt.Println("Command Successfully Executed")
+//    commit_hash := string(out[:])
+//    //fmt.Println(output)
+//
+//    //// let's try the pwd command herer
+//    //out, err = exec.Command("pwd").Output()
+//    //if err != nil {
+//    //    fmt.Printf("%s", err)
+//    //}
+//    //fmt.Println("Command Successfully Executed")
+//    //output = string(out[:])
+//    //fmt.Println(output)
+//}
+
 // NewChatUI returns a new ChatUI struct that controls the text UI.
 // It won't actually do anything until you call Run().
 func NewChatUI(cr *ChatRoom) *ChatUI {
+
+
+
+
+	// Gets the HEAD history from HEAD, just like this command:
+	//Info("git log")
+
+	// ... retrieves the branch pointed by HEAD
+	//ref, err := r.Head()
+	//CheckIfError(err)
+
+
+	// Prints the current HEAD to verify that all worked well.
+	//Info("git show -s")
+	//obj, err := r.CommitObject(commit)
+	//CheckIfError(err)
+
+    if runtime.GOOS == "windows" {
+        fmt.Println("Can't Execute this on a windows machine")
+    } else {
+        //git_rev_parse_head()
+    }
+
+
 	app := tview.NewApplication()
+
+
+    out, err := exec.Command("git" , "rev-parse" ,"HEAD").Output()
+
+    // if there is an error with our execution
+    // handle it here
+    if err != nil {
+        fmt.Printf("%s", err)
+    }
+    // as the out variable defined above is of type []byte we need to convert
+    // this to a string or else we will see garbage printed out in our console
+    // this is how we convert it to a string
+    //fmt.Println("Command Successfully Executed")
+    commit_hash := string(out[:])
 
 	// make a text view to contain our chat messages
 	msgBox := tview.NewTextView()
 	msgBox.SetDynamicColors(true)
 	msgBox.SetBorder(true)
-	msgBox.SetTitle(fmt.Sprintf("Topic: %s", cr.roomName))
+	//msgBox.SetTitle(fmt.Sprintf("Topic: %s", cr.roomName))
+	msgBox.SetTitle(fmt.Sprintf("Topic: %s", commit_hash))
 
 	// text views are io.Writers, but they don't automatically refresh.
 	// this sets a change handler to force the app to redraw when we get
