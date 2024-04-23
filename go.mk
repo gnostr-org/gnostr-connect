@@ -1,3 +1,3 @@
-.PHONY:go-peer
-go-peer:
-		cd go-peer && go build -v -o /usr/local/bin/gnostr-go-chat && cd ..
+.PHONY:go-chat
+go-chat:
+		cd go-chat && go build -v -o /usr/local/bin/gnostr-go-chat && cd ..
