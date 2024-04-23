@@ -20,7 +20,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	discovery "github.com/libp2p/go-libp2p/p2p/discovery/util"
-	relayv2 "github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/relay"
 	quicTransport "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
@@ -39,11 +38,17 @@ var SysMsgChan chan *ChatMessage
 // NewDHT attempts to connect to a bunch of bootstrap peers and returns a new DHT.
 // If you don't have any bootstrapPeers, you can use dht.DefaultBootstrapPeers or an empty list.
 func NewDHT(ctx context.Context, host host.Host, bootstrapPeers []multiaddr.Multiaddr) (*dht.IpfsDHT, error) {
+	var options []dht.Option
 
-	kdht, err := dht.New(ctx, host,
-		dht.BootstrapPeers(dht.GetDefaultBootstrapPeerAddrInfos()...),
-		dht.Mode(dht.ModeAuto),
-	)
+	// if no bootstrap peers give this peer act as a bootstraping node
+	// other peers can use this peers ipfs address for peer discovery via dht
+	if len(bootstrapPeers) == 0 {
+		options = append(options, dht.Mode(dht.ModeServer))
+	}
+
+	options = append(options, dht.ProtocolPrefix("/universal-connectivity/lan"))
+
+	kdht, err := dht.New(ctx, host, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +106,7 @@ func Discover(ctx context.Context, h host.Host, dht *dht.IpfsDHT, rendezvous str
 						LogMsgf("Failed to connect to peer (%s): %s", p.ID, err.Error())
 						continue
 					}
-					LogMsgf("Connected to peer %s", p.ID.String())
+					LogMsgf("Connected to peer %s", p.ID.Pretty())
 				}
 			}
 		}
@@ -173,11 +178,6 @@ func main() {
 
 	// create a new libp2p Host with lots of options
 	h, err := libp2p.New(opts...)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = relayv2.New(h)
 	if err != nil {
 		panic(err)
 	}
@@ -270,8 +270,8 @@ func defaultNick(p peer.ID) string {
 
 // shortID returns the last 8 chars of a base58-encoded peer id.
 func shortID(p peer.ID) string {
-	str := p.String()
-	return str[len(str)-8:]
+	pretty := p.Pretty()
+	return pretty[len(pretty)-8:]
 }
 
 // discoveryNotifee gets notified when we find a new peer via mDNS discovery
@@ -283,10 +283,10 @@ type discoveryNotifee struct {
 // the PubSub system will automatically start interacting with them if they also
 // support PubSub.
 func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
-	LogMsgf("discovered new peer %s", pi.ID.String())
+	LogMsgf("discovered new peer %s", pi.ID.Pretty())
 	err := n.h.Connect(context.Background(), pi)
 	if err != nil {
-		LogMsgf("error connecting to peer %s: %s", pi.ID.String(), err)
+		LogMsgf("error connecting to peer %s: %s", pi.ID.Pretty(), err)
 	}
 }
 
