@@ -35,7 +35,7 @@ func NewChatUI(cr *ChatRoom) *ChatUI {
 	msgBox := tview.NewTextView()
 	msgBox.SetDynamicColors(true)
 	msgBox.SetBorder(true)
-	msgBox.SetTitle(fmt.Sprintf("Room: %s", cr.roomName))
+	msgBox.SetTitle(fmt.Sprintf("Topic: %s", cr.roomName))
 
 	// text views are io.Writers, but they don't automatically refresh.
 	// this sets a change handler to force the app to redraw when we get
