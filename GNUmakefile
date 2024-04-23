@@ -455,14 +455,9 @@ nvm: ## 	nvm
 nvm-clean: ## 	nvm-clean
 	@rm -rf ~/.nvm
 
--include gnostr.mk
--include gnostr-act.mk
--include gnostr-bot.mk
 -include docker.mk
--include venv.mk
--include clean.mk
 -include cargo.mk
--include tests.mk
+-include go.mk
 
 # vim: set noexpandtab:
 # vim: set setfiletype make
