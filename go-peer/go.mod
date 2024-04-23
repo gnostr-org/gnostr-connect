@@ -1,4 +1,4 @@
-module github.com/libp2p/universal-connectivity/go-peer
+module github.com/gnostr-org/gnostr-connect/go-peer
 
 go 1.21
 
