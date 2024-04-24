@@ -58,7 +58,7 @@ struct Opt {
     /// Nodes to connect to on startup. Can be specified several times.
     #[clap(
         long,
-        default_value = "/dns/gnostr-rust-chat.fly.dev/udp/9091/quic-v1"
+        default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1"
     )]
     connect: Vec<Multiaddr>,
 }
