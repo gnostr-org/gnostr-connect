@@ -1,5 +1,5 @@
 [package]
-name = "rust-libp2p-webrtc-peer"
+name = "gnostr-rust-chat"
 version = "0.1.0"
 edition = "2021"
 
