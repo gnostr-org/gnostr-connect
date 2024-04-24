@@ -1,5 +1,5 @@
 mod protocol;
-
+use gnostr_bins;
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures::future::{select, Either};
@@ -144,9 +144,20 @@ async fn main() -> Result<()> {
                         message,
                     },
                 )) => {
+                    //
+                    let weeble = gnostr_bins::get_weeble().unwrap().to_string();
+                    let unquoted_weeble = &weeble[0..weeble.len() - 0];
+                    let blockheight = gnostr_bins::get_blockheight().unwrap().to_string();
+                    let unquoted_blockheight = &blockheight[0..blockheight.len() - 0];
+                    let wobble = gnostr_bins::get_wobble().unwrap().to_string();
+                    let unquoted_wobble = &wobble[0..wobble.len() - 0];
+                    println!("{}/{}/{}",
+                        unquoted_weeble,unquoted_blockheight,unquoted_wobble);
+
                     if message.topic == chat_topic_hash {
-                        info!(
-                            "Received message from {:?}: {}",
+                        println!(
+                            "{}:{:?}: {}",
+                            unquoted_weeble,
                             message.source,
                             String::from_utf8(message.data).unwrap()
                         );

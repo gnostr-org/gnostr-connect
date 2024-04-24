@@ -1,3 +1,4 @@
+use gnostr_bins;
 use async_trait::async_trait;
 use futures::{io, AsyncRead, AsyncWrite};
 use libp2p::{
