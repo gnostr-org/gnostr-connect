@@ -3,12 +3,12 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = "universal-connectivity-rust-peer"
+app = "gnostr-connect"
 primary_region = "syd"
 
 [experimental]
 # Resolve the special `fly-global-services` address before starting the container, see https://fly.io/docs/app-guides/udp-and-tcp/#the-fly-global-services-address.
-cmd = ["/bin/sh", "-c", "set -ex; LISTEN_ADDRESS=$(getent hosts fly-global-services | cut -d' ' -f1) && rust-libp2p-webrtc-peer"]
+cmd = ["/bin/sh", "-c", "set -ex; LISTEN_ADDRESS=$(getent hosts fly-global-services | cut -d' ' -f1) && gnostr-rust-chat"]
 
 [env]
 EXTERNAL_ADDRESS="149.248.215.31" # TODO: Remove this in favor of an AutoNAT setup.
