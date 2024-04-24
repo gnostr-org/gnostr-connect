@@ -11,7 +11,7 @@ primary_region = "syd"
 cmd = ["/bin/sh", "-c", "set -ex; LISTEN_ADDRESS=$(getent hosts fly-global-services | cut -d' ' -f1) && gnostr-rust-chat"]
 
 [env]
-EXTERNAL_ADDRESS="149.248.215.31" # TODO: Remove this in favor of an AutoNAT setup.
+EXTERNAL_ADDRESS="37.16.6.234" # TODO: Remove this in favor of an AutoNAT setup.
 
 [[services]]
 internal_port = 9090
