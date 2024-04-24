@@ -5,7 +5,7 @@ else
 PROJECT_NAME                            := $(project)
 endif
 export PROJECT_NAME
-VERSION                                 :=$(shell cat version)
+VERSION                                 :=$(shell cat version 2>/dev/null || true)
 export VERSION
 TIME                                    :=$(shell date +%s)
 export TIME
@@ -52,7 +52,7 @@ export RUSTUP_INIT_SKIP_PATH_CHECK
 export TOOLCHAIN
 export Z
 
-SUBMODULES=:$(shell cat .gitmodules | grep path | cut -d ' ' -f 3)
+SUBMODULES=:$(shell cat .gitmodules 2>/dev/null  | grep path | cut -d ' ' -f 3 || touch .gitmodules)
 export SUBMODULES
 
 ifeq ($(verbose),true)
