@@ -21,32 +21,32 @@ cargo-b:cargo-build### 	cargo b
 cargo-build:### 	cargo build
 ## 	cargo-build q=true
 	@. $(HOME)/.cargo/env
-	@cd rust-peer && RUST_BACKTRACE=all cargo b $(QUIET)
+	@cd rust-chat && RUST_BACKTRACE=all cargo b $(QUIET)
 cargo-i:cargo-install
 cargo-install:### 	cargo install --path jj
 	#@. $(HOME)/.cargo/env
-	@cargo install --path rust-peer
+	@cargo install --path rust-chat
 cargo-br:cargo-build-release### 	cargo-br
 ## 	cargo-br q=true
 cargo-build-release:### 	cargo-build-release
 ## 	cargo-build-release q=true
 	@. $(HOME)/.cargo/env
-	@cd rust-peer && cargo b --release $(QUIET)
+	@cd rust-chat && cargo b --release $(QUIET)
 cargo-c:cargo-check
 cargo-check:### 	cargo-check
 	@. $(HOME)/.cargo/env
-	@cd rust-peer && cargo c
+	@cd rust-chat && cargo c
 cargo-bench:### 	cargo-bench
 	@. $(HOME)/.cargo/env
-	@cd rust-peer && cargo bench
+	@cd rust-chat && cargo bench
 cargo-t:cargo-test
 cargo-test:### 	cargo-test
 	@. $(HOME)/.cargo/env
 	#@cargo test
-	@cd rust-peer && cargo test -p jj-cli --test runner
+	@cd rust-chat && cargo test -p jj-cli --test runner
 cargo-report:### 	cargo-report
 	@. $(HOME)/.cargo/env
-	cd rust-peer && cargo report future-incompatibilities --id 1
+	cd rust-chat && cargo report future-incompatibilities --id 1
 
 cargo-deps-gnostr-all:cargo-deps-gnostr-cat cargo-deps-gnostr-cli cargo-deps-gnostr-command cargo-deps-gnostr-grep cargo-deps-gnostr-legit cargo-deps-gnostr-sha256### 	cargo-deps-gnostr-all
 cargo-deps-gnostr-cat:### 	cargo-deps-gnostr-cat
