@@ -12,13 +12,13 @@ RUN --mount=type=cache,target=./target \
     cargo build --release --target x86_64-unknown-linux-musl
 
 RUN --mount=type=cache,target=./target \
-    mv ./target/x86_64-unknown-linux-musl/release/rust-libp2p-webrtc-peer /usr/local/bin/rust-libp2p-webrtc-peer
+    mv ./target/x86_64-unknown-linux-musl/release/gnostr-rust-chat /usr/local/bin/gnostr-rust-chat
 
 FROM alpine:3
 WORKDIR /app
-COPY --from=builder /usr/local/bin/rust-libp2p-webrtc-peer /usr/bin/rust-libp2p-webrtc-peer
+COPY --from=builder /usr/local/bin/gnostr-rust-chat /usr/bin/gnostr-rust-chat
 RUN --mount=type=cache,target=/var/cache/apk apk add bind-tools
 
 ENV RUST_BACKTRACE=1
 
-CMD ["rust-libp2p-webrtc-peer"]
+CMD ["gnostr-rust-chat"]
