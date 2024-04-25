@@ -104,7 +104,9 @@ async fn main() -> Result<()> {
     }
 
     let chat_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC).hash();
+    println!("{}",chat_topic_hash);
     let file_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC).hash();
+    println!("{}",file_topic_hash);
 
     let mut tick = futures_timer::Delay::new(TICK_INTERVAL);
 
@@ -160,7 +162,7 @@ async fn main() -> Result<()> {
                         //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 10000000 );
                         //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000 );
                         print!(
-                            "{}:{}:{:}:{}\n",
+                            "{}/{}/{:}:{}",
                             message.topic,
                             message.sequence_number.unwrap(),
                             message.source.unwrap().to_string(),
@@ -305,7 +307,7 @@ async fn main() -> Result<()> {
                 }
 
                 let message = format!(
-                    "Hello world! Sent from the gnostr-chat at: {:4}s",
+                    "LINE:310:Hello world! Sent from the gnostr-chat at: {:4}s",
                     now.elapsed().as_secs_f64()
                 );
 
