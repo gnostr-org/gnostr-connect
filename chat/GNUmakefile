@@ -457,6 +457,7 @@ nvm-clean: ## 	nvm-clean
 
 -include docker.mk
 -include cargo.mk
+-include fly.mk
 -include go.mk
 
 # vim: set noexpandtab:
