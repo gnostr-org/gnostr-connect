@@ -40,7 +40,7 @@ const PORT_WEBRTC: u16 = 9090;
 const PORT_QUIC: u16 = 9091;
 const LOCAL_KEY_PATH: &str = "./local_key";
 const LOCAL_CERT_PATH: &str = "./cert.pem";
-const GOSSIPSUB_CHAT_TOPIC: &str = "universal-connectivity";
+const GOSSIPSUB_CHAT_TOPIC: &str = "gnostr";
 const GOSSIPSUB_CHAT_FILE_TOPIC: &str = "universal-connectivity-file";
 const BOOTSTRAP_NODES: [&str; 4] = [
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
@@ -159,13 +159,28 @@ async fn main() -> Result<()> {
                         message,
                     },
                 )) => {
+                    //`source`, `data`, `sequence_number`, `topic`
+                        //nanoseconds
+                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
                     if message.topic == chat_topic_hash {
+                        println!("message.topic={}",message.topic);
+                        println!("message.topic={}",message.topic);
+                        println!("chat_topic_hash={}",chat_topic_hash);
+                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
                         info!(
-                            "Received message from {:?}: {}",
-                            message.source,
-                            String::from_utf8(message.data).unwrap()
+                            "{:}: {}",
+                            message.source.unwrap().to_string(),
+                            String::from_utf8(message.data).unwrap().to_string()
                         );
                         continue;
+                    } else {
+                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
+                        info!("else.....");
+                        info!(
+                            "off topic:{:?}: {}",
+                            message.source,
+                            String::from_utf8(message.data.clone()).unwrap().to_string()
+                        );
                     }
 
                     if message.topic == file_topic_hash {
@@ -288,6 +303,18 @@ async fn main() -> Result<()> {
 
                 if let Err(e) = swarm.behaviour_mut().kademlia.bootstrap() {
                     debug!("Failed to run Kademlia bootstrap: {e:?}");
+                }
+
+                let message = format!(
+                    "Hello world! Sent from the gnostr-chat at: {:4}s",
+                    now.elapsed().as_secs_f64()
+                );
+
+                if let Err(err) = swarm.behaviour_mut().gossipsub.publish(
+                    gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC),
+                    message.as_bytes(),
+                ) {
+                    error!("Failed to publish periodic message: {err}")
                 }
             }
         }
