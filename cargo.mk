@@ -23,8 +23,8 @@ cargo-build:### 	cargo build
 	@. $(HOME)/.cargo/env
 	@cd chat && RUST_BACKTRACE=all cargo b $(QUIET)
 .PHONY:chat
-chat:cargo-install### 	chat
-cargo-i:cargo-install
+chat:cargo-install cargo-build-release### 	chat
+cargo-i:cargo-install cargo-build-release
 cargo-install:### 	cargo install --path jj
 	#@. $(HOME)/.cargo/env
 	@cargo install --path chat
