@@ -8,7 +8,7 @@ primary_region = "syd"
 
 [experimental]
 # Resolve the special `fly-global-services` address before starting the container, see https://fly.io/docs/app-guides/udp-and-tcp/#the-fly-global-services-address.
-cmd = ["/bin/sh", "-c", "set -ex; LISTEN_ADDRESS=$(getent hosts fly-global-services | cut -d' ' -f1) && gnostr-rust-chat"]
+cmd = ["/bin/sh", "-c", "set -ex; LISTEN_ADDRESS=$(getent hosts fly-global-services | cut -d' ' -f1) && gnostr-chat"]
 
 [env]
 EXTERNAL_ADDRESS="37.16.6.234" # TODO: Remove this in favor of an AutoNAT setup.
