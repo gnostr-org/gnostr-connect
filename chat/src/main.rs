@@ -1,5 +1,5 @@
 mod protocol;
-use gnostr_bins;
+//use gnostr_bins;
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures::future::{select, Either};
@@ -158,7 +158,7 @@ async fn main() -> Result<()> {
                         println!(
                             "{}:{:?}: {}",
                             unquoted_weeble,
-                            message.source,
+                            message.source.unwrap(),
                             String::from_utf8(message.data).unwrap()
                         );
                         continue;

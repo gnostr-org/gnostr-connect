@@ -48,6 +48,9 @@ cargo-report:### 	cargo-report
 	@. $(HOME)/.cargo/env
 	cargo report future-incompatibilities --id 1
 
+rustup-target-add-x86-linux-musl:### 	 rustup-target-add-x86-linux-musl
+	rustup target add x86_64-unknown-linux-musl
+
 cargo-deps-gnostr-all:cargo-deps-gnostr-cat cargo-deps-gnostr-cli cargo-deps-gnostr-command cargo-deps-gnostr-grep cargo-deps-gnostr-legit cargo-deps-gnostr-sha256### 	cargo-deps-gnostr-all
 cargo-deps-gnostr-cat:### 	cargo-deps-gnostr-cat
 	rustup-init -y -q --default-toolchain $(TOOLCHAIN) && \
