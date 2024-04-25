@@ -157,12 +157,18 @@ async fn main() -> Result<()> {
                     //`source`, `data`, `sequence_number`, `topic`
                     if message.topic == chat_topic_hash {
                         println!(
-                            "[{}/{}/{:}]\n{}",
+                            "[{}/{:}]\n{}",
                             message.topic,
-                            message.sequence_number.unwrap(),
                             message.source.unwrap().to_string(),
                             String::from_utf8(message.data).unwrap().to_string()
                         );
+                        //println!(
+                        //    "[{}/{}/{:}]\n{}",
+                        //    message.topic,
+                        //    message.sequence_number.unwrap(),
+                        //    message.source.unwrap().to_string(),
+                        //    String::from_utf8(message.data).unwrap().to_string()
+                        //);
                         //info!(
                         //    "{:}: {}",
                         //    message.source.unwrap().to_string(),
