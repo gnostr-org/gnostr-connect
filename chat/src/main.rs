@@ -32,7 +32,7 @@ use tokio::fs;
 
 use crate::protocol::FileRequest;
 
-const TICK_INTERVAL: Duration = Duration::from_secs(15);
+const TICK_INTERVAL: Duration = Duration::from_secs(5);
 const KADEMLIA_PROTOCOL_NAME: StreamProtocol =
     StreamProtocol::new("/universal-connectivity/lan/kad/1.0.0");
 const FILE_EXCHANGE_PROTOCOL: StreamProtocol =
@@ -98,15 +98,16 @@ async fn main() -> Result<()> {
         .expect("listen on quic");
 
     for addr in opt.connect {
+        info!("{}",addr);
         if let Err(e) = swarm.dial(addr.clone()) {
             debug!("Failed to dial {addr}: {e}");
         }
     }
 
     let chat_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC).hash();
-    println!("{}",chat_topic_hash);
+    //println!("{}",chat_topic_hash);
     let file_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC).hash();
-    println!("{}",file_topic_hash);
+    //println!("{}",file_topic_hash);
 
     let mut tick = futures_timer::Delay::new(TICK_INTERVAL);
 
@@ -124,6 +125,9 @@ async fn main() -> Result<()> {
                     }
 
                     let p2p_address = address.with(Protocol::P2p(*swarm.local_peer_id()));
+                    info!("Listening on {p2p_address}");
+                    info!("Listening on {p2p_address}");
+                    info!("Listening on {p2p_address}");
                     info!("Listening on {p2p_address}");
                 }
                 SwarmEvent::ConnectionEstablished { peer_id, .. } => {
@@ -151,18 +155,9 @@ async fn main() -> Result<()> {
                     },
                 )) => {
                     //`source`, `data`, `sequence_number`, `topic`
-                        //nanoseconds
-                        //println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
                     if message.topic == chat_topic_hash {
-                        //println!("message.topic={}",message.topic);
-                        //println!("message.topic={}",message.topic);
-                        //println!("chat_topic_hash={}",chat_topic_hash);
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 100000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 10000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000 );
-                        print!(
-                            "{}/{}/{:}:{}",
+                        println!(
+                            "[{}/{}/{:}]\n{}",
                             message.topic,
                             message.sequence_number.unwrap(),
                             message.source.unwrap().to_string(),
