@@ -44,7 +44,8 @@ const LOCAL_CERT_PATH: &str = "./cert.pem";
 const GOSSIPSUB_CHAT_TOPIC: &str = "universal-connectivity";
 const GOSSIPSUB_CHAT_FILE_TOPIC: &str = "universal-connectivity-file";
 
-const GNOSTR_CONNECT_DEFAULT_SEEDER: &str = "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
+const GNOSTR_CONNECT_DEFAULT_SEEDER: &str =
+    "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
 
 #[derive(Debug, Parser)]
 #[clap(name = "gnostr-chat")]
