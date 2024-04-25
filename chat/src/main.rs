@@ -49,8 +49,10 @@ const BOOTSTRAP_NODES: [&str; 4] = [
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
 ];
 
+const GNOSTR_CONNECT_DEFAULT_SEEDER: &str = "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
+
 #[derive(Debug, Parser)]
-#[clap(name = "universal connectivity rust peer")]
+#[clap(name = "gnostr-chat")]
 struct Opt {
     /// Address to listen on.
     #[clap(long, default_value = "0.0.0.0")]
