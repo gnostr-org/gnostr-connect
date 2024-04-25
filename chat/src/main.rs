@@ -161,17 +161,27 @@ async fn main() -> Result<()> {
                 )) => {
                     //`source`, `data`, `sequence_number`, `topic`
                         //nanoseconds
-                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
+                        //println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
                     if message.topic == chat_topic_hash {
-                        println!("message.topic={}",message.topic);
-                        println!("message.topic={}",message.topic);
-                        println!("chat_topic_hash={}",chat_topic_hash);
-                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
-                        info!(
-                            "{:}: {}",
+                        //println!("message.topic={}",message.topic);
+                        //println!("message.topic={}",message.topic);
+                        //println!("chat_topic_hash={}",chat_topic_hash);
+                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000000 );
+                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 100000000 );
+                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 10000000 );
+                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000 );
+                        print!(
+                            "{}:{}:{:}:{}\n",
+                            message.topic,
+                            message.sequence_number.unwrap(),
                             message.source.unwrap().to_string(),
                             String::from_utf8(message.data).unwrap().to_string()
                         );
+                        //info!(
+                        //    "{:}: {}",
+                        //    message.source.unwrap().to_string(),
+                        //    String::from_utf8(message.data).unwrap().to_string()
+                        //);
                         continue;
                     } else {
                         println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
