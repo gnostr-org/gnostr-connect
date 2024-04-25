@@ -119,7 +119,7 @@ func LogMsgf(f string, msg ...any) {
 
 func main() {
 	// parse some flags to set our nickname and the room to join
-	nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
+	nickFlag := flag.String("nick", "gnostr-user", "nickname to use in chat. will be generated if empty")
 	roomFlag := flag.String("room", "universal-connectivity", "name of chat room to join")
 	idPath := flag.String("identity", "identity.key", "path to the private key (PeerID) file")
 	certPath := flag.String("tls-cert-path", "", "path to the tls cert file (for websockets)")
