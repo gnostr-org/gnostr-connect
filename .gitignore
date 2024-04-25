@@ -1,3 +1,6 @@
+go-chat/local_key
+go-chat/cert.pem
+go-chat/module-coverage.txt
 identity.key
 node_modules
 build
