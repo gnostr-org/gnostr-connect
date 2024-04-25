@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.5-labs
-FROM rust:1.72.0 as builder
+FROM rust:1.77.2 as builder
 
 RUN rustup target add x86_64-unknown-linux-musl
 RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install -y musl-dev musl-tools
@@ -12,13 +12,13 @@ RUN --mount=type=cache,target=./target \
     cargo build --release --target x86_64-unknown-linux-musl
 
 RUN --mount=type=cache,target=./target \
-    mv ./target/x86_64-unknown-linux-musl/release/gnostr-rust-chat /usr/local/bin/gnostr-rust-chat
+    mv ./target/x86_64-unknown-linux-musl/release/gnostr-chat /usr/local/bin/gnostr-chat
 
 FROM alpine:3
 WORKDIR /app
-COPY --from=builder /usr/local/bin/gnostr-rust-chat /usr/bin/gnostr-rust-chat
+COPY --from=builder /usr/local/bin/gnostr-chat /usr/bin/gnostr-chat
 RUN --mount=type=cache,target=/var/cache/apk apk add bind-tools
 
 ENV RUST_BACKTRACE=1
 
-CMD ["gnostr-rust-chat"]
+CMD ["gnostr-chat"]
