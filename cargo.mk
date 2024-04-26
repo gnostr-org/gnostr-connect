@@ -25,28 +25,31 @@ cargo-build:### 	cargo build
 cargo-i:cargo-install
 cargo-install:### 	cargo install --path .
 	#@. $(HOME)/.cargo/env
-	@cargo install --path .
+	#@cargo install --path .
+	@cd chat && RUST_BACKTRACE=all cargo b $(QUIET)
+.PHONY:chat
+chat:cargo-install cargo-build-release### 	chat
 cargo-br:cargo-build-release### 	cargo-br
 ## 	cargo-br q=true
 cargo-build-release:### 	cargo-build-release
 ## 	cargo-build-release q=true
 	@. $(HOME)/.cargo/env
-	@cargo b --release $(QUIET)
+	@cd chat && cargo b --release $(QUIET)
 cargo-c:cargo-check
 cargo-check:### 	cargo-check
 	@. $(HOME)/.cargo/env
-	@cargo c
+	@cd chat && cargo c
 cargo-bench:### 	cargo-bench
 	@. $(HOME)/.cargo/env
-	@cargo bench
+	@cd chat && cargo bench
 cargo-t:cargo-test
 cargo-test:### 	cargo-test
 	@. $(HOME)/.cargo/env
 	#@cargo test
-	@cargo test -p jj-cli --test runner
+	@cd chat && cargo test -p jj-cli --test runner
 cargo-report:### 	cargo-report
 	@. $(HOME)/.cargo/env
-	cargo report future-incompatibilities --id 1
+	cd chat && cargo report future-incompatibilities --id 1
 
 cargo-deps-gnostr-all:cargo-deps-gnostr-cat cargo-deps-gnostr-cli cargo-deps-gnostr-command cargo-deps-gnostr-grep cargo-deps-gnostr-legit cargo-deps-gnostr-sha256### 	cargo-deps-gnostr-all
 cargo-deps-gnostr-cat:### 	cargo-deps-gnostr-cat
