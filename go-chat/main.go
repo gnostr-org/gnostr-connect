@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+    "os/exec"
 	"sync"
 	"time"
 
@@ -121,6 +122,7 @@ func main() {
 	// parse some flags to set our nickname and the room to join
 	nickFlag := flag.String("nick", "gnostr-user", "nickname to use in chat. will be generated if empty")
 	roomFlag := flag.String("room", "universal-connectivity", "name of chat room to join")
+	topicFlag := flag.String("topic", "gnostr", "name of gnostr discussion")
 	idPath := flag.String("identity", "identity.key", "path to the private key (PeerID) file")
 	certPath := flag.String("tls-cert-path", "", "path to the tls cert file (for websockets)")
 	keyPath := flag.String("tls-key-path", "", "path to the tls key file (for websockets")
@@ -194,16 +196,6 @@ func main() {
 		nick = defaultNick(h.ID())
 	}
 
-	// join the room from the cli flag, or the flag default
-	room := *roomFlag
-
-	// join the chat room
-	cr, err := JoinChatRoom(ctx, h, ps, nick, room)
-	if err != nil {
-		panic(err)
-	}
-	SysMsgChan = cr.SysMessages
-
 	// setup DHT with empty discovery peers
 	// so this will be a discovery peer for others
 	// this peer should run on cloud(with public ip address)
@@ -212,13 +204,49 @@ func main() {
 		panic(err)
 	}
 
-	// setup peer discovery
-	go Discover(ctx, h, dht, "universal-connectivity")
-
 	// setup local mDNS discovery
 	if err := setupDiscovery(h); err != nil {
 		panic(err)
 	}
+
+
+    out, err := exec.Command("git", "rev-parse", "HEAD").Output()
+
+    if err != nil {
+        fmt.Printf("%s", err)
+    }
+
+   // as the out variable defined above is of type []byte we need to convert
+   // this to a string or else we will see garbage printed out in our console
+   // this is how we convert it to a string
+   //fmt.Println("Command Successfully Executed")
+   commit_hash := string(out[:])
+
+
+	// join the room from the cli flag, or the flag default
+	room := *roomFlag
+	if len(room) == 0 {
+		//room = defaultNick(h.ID())
+		room = commit_hash
+	}
+	// join the topic from the cli flag, or the flag default
+	topic := *topicFlag
+	if len(topic) == 0 {
+		topic = room
+	}
+
+    // join the chat room
+    cr, err := JoinChatRoom(ctx, h, ps, nick, topic)
+    if err != nil {
+        panic(err)
+    }
+
+    SysMsgChan = cr.SysMessages
+	// setup peer discovery
+	// setup peer discovery
+	go Discover(ctx, h, dht, "universal-connectivity")
+
+
 
 	if len(addrsToConnectTo) > 0 {
 		for _, addr := range addrsToConnectTo {
