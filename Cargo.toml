@@ -1,5 +1,5 @@
 [package]
-name = "gnostr-dashboard"
+name = "gnostr-connect"
 version = "0.0.0"
 authors = ["gnostr <admin@gnostr.org>"]
 edition = "2018"
