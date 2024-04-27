@@ -1,487 +1,460 @@
-use chrono::prelude::*;
-use crossterm::{
-    event::{self, Event as CEvent, KeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode},
+mod protocol;
+
+use anyhow::{Context, Result};
+use clap::Parser;
+use futures::future::{select, Either};
+use futures::StreamExt;
+use libp2p::request_response::{self, ProtocolSupport};
+use libp2p::{
+    core::muxing::StreamMuxerBox,
+    dns, gossipsub, identify, identity,
+    kad::record::store::MemoryStore,
+    kad::{Kademlia, KademliaConfig},
+    memory_connection_limits,
+    multiaddr::{Multiaddr, Protocol},
+    quic, relay,
+    swarm::{NetworkBehaviour, Swarm, SwarmBuilder, SwarmEvent},
+    PeerId, StreamProtocol, Transport,
 };
-use rand::{distributions::Alphanumeric, prelude::*};
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io;
-use std::sync::mpsc;
-use std::thread;
-use std::time::{Duration, Instant};
-use thiserror::Error;
-use tui::{
-    backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans},
-    widgets::{
-        Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs,
-    },
-    Terminal,
+use libp2p_webrtc as webrtc;
+use libp2p_webrtc::tokio::Certificate;
+use log::{debug, error, info, warn};
+use protocol::FileExchangeCodec;
+use std::iter;
+use std::net::IpAddr;
+use std::path::Path;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    time::{Duration, Instant},
 };
+use tokio::fs;
 
-const APP_NAME:&str = env!("CARGO_PKG_NAME");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+use crate::protocol::FileRequest;
 
-const ICON_FONT_SIZE: u16 = 12;
-const DB_PATH: &str = "./data/db.json";
+const TICK_INTERVAL: Duration = Duration::from_secs(5);
+const KADEMLIA_PROTOCOL_NAME: StreamProtocol =
+    StreamProtocol::new("/universal-connectivity/lan/kad/1.0.0");
+const FILE_EXCHANGE_PROTOCOL: StreamProtocol =
+    StreamProtocol::new("/universal-connectivity-file/1");
+const PORT_WEBRTC: u16 = 9090;
+const PORT_QUIC: u16 = 9091;
+const LOCAL_KEY_PATH: &str = "./local_key";
+const LOCAL_CERT_PATH: &str = "./cert.pem";
+const GOSSIPSUB_CHAT_TOPIC: &str = "gnostr";
+const GOSSIPSUB_CHAT_FILE_TOPIC: &str = "universal-connectivity-file";
 
-const INDIGO: Color = Color::Rgb(182, 46, 209);
+const GNOSTR_CONNECT_DEFAULT_SEEDER: &str =
+    "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("error reading the DB file: {0}")]
-    ReadDBError(#[from] io::Error),
-    #[error("error parsing the DB file: {0}")]
-    ParseDBError(#[from] serde_json::Error),
+#[derive(Debug, Parser)]
+#[clap(name = "gnostr-chat")]
+struct Opt {
+    /// Address to listen on.
+    #[clap(long, default_value = "0.0.0.0")]
+    listen_address: IpAddr,
+
+    /// If known, the external address of this node. Will be used to correctly advertise our external address across all transports.
+    #[clap(long, env)]
+    external_address: Option<IpAddr>,
+
+    /// Nodes to connect to on startup. Can be specified several times.
+    #[clap(
+        long,
+        //default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1"
+        default_value = GNOSTR_CONNECT_DEFAULT_SEEDER
+    )]
+    connect: Vec<Multiaddr>,
 }
 
-enum Event<I> {
-    Input(I),
-    Tick,
-}
+/// An example WebRTC peer that will accept connections
+#[tokio::main]
+async fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-#[derive(Serialize, Deserialize, Clone)]
-struct Pet {
-    id: usize,
-    name: String,
-    category: String,
-    age: usize,
-    created_at: DateTime<Utc>,
-}
+    let opt = Opt::parse();
+    let local_key = read_or_create_identity(Path::new(LOCAL_KEY_PATH))
+        .await
+        .context("Failed to read identity")?;
+    let webrtc_cert = read_or_create_certificate(Path::new(LOCAL_CERT_PATH))
+        .await
+        .context("Failed to read certificate")?;
 
-#[derive(Copy, Clone, Debug)]
-enum MenuItem {
-    Home,
-    Pets,
-}
+    let mut swarm = create_swarm(local_key, webrtc_cert)?;
 
-impl From<MenuItem> for usize {
-    fn from(input: MenuItem) -> usize {
-        match input {
-            MenuItem::Home => 0,
-            MenuItem::Pets => 1,
+    let address_webrtc = Multiaddr::from(opt.listen_address)
+        .with(Protocol::Udp(PORT_WEBRTC))
+        .with(Protocol::WebRTCDirect);
+
+    let address_quic = Multiaddr::from(opt.listen_address)
+        .with(Protocol::Udp(PORT_QUIC))
+        .with(Protocol::QuicV1);
+
+    swarm
+        .listen_on(address_webrtc.clone())
+        .expect("listen on webrtc");
+    swarm
+        .listen_on(address_quic.clone())
+        .expect("listen on quic");
+
+    for addr in opt.connect {
+        info!("{}",addr);
+        if let Err(e) = swarm.dial(addr.clone()) {
+            debug!("Failed to dial {addr}: {e}");
         }
     }
-}
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    enable_raw_mode().expect("can run in raw mode");
+    let chat_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC).hash();
+    //println!("{}",chat_topic_hash);
+    let file_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC).hash();
+    //println!("{}",file_topic_hash);
 
-    let (tx, rx) = mpsc::channel();
-    let tick_rate = Duration::from_millis(200);
-    thread::spawn(move || {
-        let mut last_tick = Instant::now();
-        loop {
-            let timeout = tick_rate
-                .checked_sub(last_tick.elapsed())
-                .unwrap_or_else(|| Duration::from_secs(0));
+    let mut tick = futures_timer::Delay::new(TICK_INTERVAL);
 
-            if event::poll(timeout).expect("poll works") {
-                if let CEvent::Key(key) = event::read().expect("can read events") {
-                    tx.send(Event::Input(key)).expect("can send events");
-                }
-            }
-
-            if last_tick.elapsed() >= tick_rate {
-                if let Ok(_) = tx.send(Event::Tick) {
-                    last_tick = Instant::now();
-                }
-            }
-        }
-    });
-
-    let stdout = io::stdout();
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    terminal.clear()?;
-
-
-    //MENU TITLES
-
-    let menu_titles = vec!["Home", "Relays", "Add", "Delete", "Quit"];
-    let mut active_menu_item = MenuItem::Home;
-    let mut pet_list_state = ListState::default();
-    pet_list_state.select(Some(0));
-
-    //LOOP
+    let now = Instant::now();
     loop {
-        terminal.draw(|rect| {
-            let size = rect.size();
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .margin(2)
-                .constraints(
-                    [
-                        Constraint::Length(3),
-                        Constraint::Min(2),
-                        Constraint::Length(3),
-                    ]
-                    .as_ref(),
-                )
-                .split(size);
+        match select(swarm.next(), &mut tick).await {
+            Either::Left((event, _)) => match event.unwrap() {
+                SwarmEvent::NewListenAddr { address, .. } => {
+                    if let Some(external_ip) = opt.external_address {
+                        let external_address = address
+                            .replace(0, |_| Some(external_ip.into()))
+                            .expect("address.len > 1 and we always return `Some`");
 
-            let copyright = Paragraph::new(format!(" {} FOOTER",APP_NAME))
-                .style(Style::default().fg(Color::LightCyan))
-                .alignment(Alignment::Left)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::White))
-                        .title(format!(" {} v{}",APP_NAME,VERSION))
-                        .border_type(BorderType::Plain),
+                        swarm.add_external_address(external_address);
+                    }
+
+                    let p2p_address = address.with(Protocol::P2p(*swarm.local_peer_id()));
+                    info!("Listening on {p2p_address}");
+                    info!("Listening on {p2p_address}");
+                    info!("Listening on {p2p_address}");
+                    info!("Listening on {p2p_address}");
+                }
+                SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                    info!("Connected to {peer_id}");
+                }
+                SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+                    warn!("Failed to dial {peer_id:?}: {error}");
+                }
+                SwarmEvent::IncomingConnectionError { error, .. } => {
+                    warn!("{:#}", anyhow::Error::from(error))
+                }
+                SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                    warn!("Connection to {peer_id} closed: {cause:?}");
+                    swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
+                    info!("Removed {peer_id} from the routing table (if it was in there).");
+                }
+                SwarmEvent::Behaviour(BehaviourEvent::Relay(e)) => {
+                    debug!("{:?}", e);
+                }
+                SwarmEvent::Behaviour(BehaviourEvent::Gossipsub(
+                    libp2p::gossipsub::Event::Message {
+                        message_id: _,
+                        propagation_source: _,
+                        message,
+                    },
+                )) => {
+                    //`source`, `data`, `sequence_number`, `topic`
+                    if message.topic == chat_topic_hash {
+                        println!(
+                            "[{}/{:}]\n{}",
+                            message.topic,
+                            message.source.unwrap().to_string(),
+                            String::from_utf8(message.data).unwrap().to_string()
+                        );
+                        //println!(
+                        //    "[{}/{}/{:}]\n{}",
+                        //    message.topic,
+                        //    message.sequence_number.unwrap(),
+                        //    message.source.unwrap().to_string(),
+                        //    String::from_utf8(message.data).unwrap().to_string()
+                        //);
+                        //info!(
+                        //    "{:}: {}",
+                        //    message.source.unwrap().to_string(),
+                        //    String::from_utf8(message.data).unwrap().to_string()
+                        //);
+                        continue;
+                    } else {
+                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
+                        info!("else.....");
+                        info!(
+                            "off topic:{:?}: {}",
+                            message.source,
+                            String::from_utf8(message.data.clone()).unwrap().to_string()
+                        );
+                    }
+
+                    if message.topic == file_topic_hash {
+                        let file_id = String::from_utf8(message.data).unwrap();
+                        info!("Received file {} from {:?}", file_id, message.source);
+
+                        let request_id = swarm.behaviour_mut().request_response.send_request(
+                            &message.source.unwrap(),
+                            FileRequest {
+                                file_id: file_id.clone(),
+                            },
+                        );
+                        info!(
+                            "Requested file {} to {:?}: req_id:{:?}",
+                            file_id, message.source, request_id
+                        );
+                        continue;
+                    }
+
+                    error!("Unexpected gossipsub topic hash: {:?}", message.topic);
+                }
+                SwarmEvent::Behaviour(BehaviourEvent::Gossipsub(
+                    libp2p::gossipsub::Event::Subscribed { peer_id, topic },
+                )) => {
+                    debug!("{peer_id} subscribed to {topic}");
+                }
+                SwarmEvent::Behaviour(BehaviourEvent::Identify(e)) => {
+                    info!("BehaviourEvent::Identify {:?}", e);
+
+                    if let identify::Event::Error { peer_id, error } = e {
+                        match error {
+                            libp2p::swarm::StreamUpgradeError::Timeout => {
+                                // When a browser tab closes, we don't get a swarm event
+                                // maybe there's a way to get this with TransportEvent
+                                // but for now remove the peer from routing table if there's an Identify timeout
+                                swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
+                                info!("Removed {peer_id} from the routing table (if it was in there).");
+                            }
+                            _ => {
+                                debug!("{error}");
+                            }
+                        }
+                    } else if let identify::Event::Received {
+                        peer_id,
+                        info:
+                            identify::Info {
+                                listen_addrs,
+                                protocols,
+                                observed_addr,
+                                ..
+                            },
+                    } = e
+                    {
+                        debug!("identify::Event::Received observed_addr: {}", observed_addr);
+
+                        swarm.add_external_address(observed_addr);
+
+                        // TODO: The following should no longer be necessary after https://github.com/libp2p/rust-libp2p/pull/4371.
+                        if protocols.iter().any(|p| p == &KADEMLIA_PROTOCOL_NAME) {
+                            for addr in listen_addrs {
+                                debug!("identify::Event::Received listen addr: {}", addr);
+                                // TODO (fixme): the below doesn't work because the address is still missing /webrtc/p2p even after https://github.com/libp2p/js-libp2p-webrtc/pull/121
+                                // swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
+
+                                let webrtc_address = addr
+                                    .with(Protocol::WebRTCDirect)
+                                    .with(Protocol::P2p(peer_id));
+
+                                swarm
+                                    .behaviour_mut()
+                                    .kademlia
+                                    .add_address(&peer_id, webrtc_address.clone());
+                                info!("Added {webrtc_address} to the routing table.");
+                            }
+                        }
+                    }
+                }
+                SwarmEvent::Behaviour(BehaviourEvent::Kademlia(e)) => {
+                    debug!("Kademlia event: {:?}", e);
+                }
+                SwarmEvent::Behaviour(BehaviourEvent::RequestResponse(
+                    request_response::Event::Message { message, .. },
+                )) => match message {
+                    request_response::Message::Request { request, .. } => {
+                        //TODO: support ProtocolSupport::Full
+                        debug!(
+                            "umimplemented: request_response::Message::Request: {:?}",
+                            request
+                        );
+                    }
+                    request_response::Message::Response { response, .. } => {
+                        info!(
+                            "request_response::Message::Response: size:{}",
+                            response.file_body.len()
+                        );
+                        // TODO: store this file (in memory or disk) and provider it via Kademlia
+                    }
+                },
+                SwarmEvent::Behaviour(BehaviourEvent::RequestResponse(
+                    request_response::Event::OutboundFailure {
+                        request_id, error, ..
+                    },
+                )) => {
+                    error!(
+                        "request_response::Event::OutboundFailure for request {:?}: {:?}",
+                        request_id, error
+                    );
+                }
+                event => {
+                    debug!("Other type of event: {:?}", event);
+                }
+            },
+            Either::Right(_) => {
+                tick = futures_timer::Delay::new(TICK_INTERVAL);
+
+                debug!(
+                    "external addrs: {:?}",
+                    swarm.external_addresses().collect::<Vec<&Multiaddr>>()
                 );
 
-            let menu = menu_titles
-                .iter()
-                .map(|t| {
-                    let (first, rest) = t.split_at(1);
-                    Spans::from(vec![
-                        Span::styled(
-                            first,
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::UNDERLINED),
-                        ),
-                        Span::styled(rest, Style::default().fg(Color::White)),
-                    ])
-                })
-                .collect();
+                if let Err(e) = swarm.behaviour_mut().kademlia.bootstrap() {
+                    debug!("Failed to run Kademlia bootstrap: {e:?}");
+                }
 
-            let tabs = Tabs::new(menu)
-                .select(active_menu_item.into())
-                .block(Block::default().title("Menu").borders(Borders::ALL))
-                .style(Style::default().fg(Color::White))
-                .highlight_style(Style::default().fg(Color::Yellow))
-                .divider(Span::raw("|"));
+                let message = format!(
+                    "LINE:310:Hello world! Sent from the gnostr-chat at: {:4}s",
+                    now.elapsed().as_secs_f64()
+                );
 
-            rect.render_widget(tabs, chunks[0]);
-            match active_menu_item {
-                MenuItem::Home => rect.render_widget(render_home(), chunks[1]),
-                MenuItem::Pets => {
-                    let pets_chunks = Layout::default()
-                        .direction(Direction::Horizontal)
-                        .constraints(
-                            [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
-                        )
-                        .split(chunks[1]);
-                    let (left, right) = render_pets(&pet_list_state);
-                    rect.render_stateful_widget(left, pets_chunks[0], &mut pet_list_state);
-                    rect.render_widget(right, pets_chunks[1]);
-
-                    //footer not persist after quit here
-                    rect.render_widget(copyright.clone(), chunks[2]);
-
+                if let Err(err) = swarm.behaviour_mut().gossipsub.publish(
+                    gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC),
+                    message.as_bytes(),
+                ) {
+                    error!("Failed to publish periodic message: {err}")
                 }
             }
-        })?;
-
-        match rx.recv()? {
-            Event::Input(event) => match event.code {
-                KeyCode::Char('q') => {
-                    disable_raw_mode()?;
-                    //terminal.clear()?;
-                    render_home();
-                    terminal.show_cursor()?;
-                    disable_raw_mode()?;
-                    break;
-                }
-                KeyCode::Char('h') => active_menu_item = MenuItem::Home,
-                KeyCode::Char('r') => active_menu_item = MenuItem::Pets,
-                KeyCode::Char('a') => {
-                    add_random_pet_to_db().expect("can add new random pet");
-                }
-                KeyCode::Char('d') => {
-                    remove_pet_at_index(&mut pet_list_state).expect("can remove pet");
-                }
-                KeyCode::Down => {
-                    if let Some(selected) = pet_list_state.selected() {
-                        let amount_pets = read_db().expect("can fetch pet list").len();
-                        if selected >= amount_pets - 1 {
-                            pet_list_state.select(Some(0));
-                        } else {
-                            pet_list_state.select(Some(selected + 1));
-                        }
-                    }
-                }
-                KeyCode::Up => {
-                    if let Some(selected) = pet_list_state.selected() {
-                        let amount_pets = read_db().expect("can fetch pet list").len();
-                        if selected > 0 {
-                            pet_list_state.select(Some(selected - 1));
-                        } else {
-                            pet_list_state.select(Some(amount_pets - 1));
-                        }
-                    }
-                }
-                _ => {}
-            },
-            Event::Tick => {}
         }
     }
-
-    Ok(())
 }
 
-fn render_home<'a>() -> Paragraph<'a> {
-    let home = Paragraph::new(vec![
-
-//REF: Unicode Character “█” (U+2588)
-
-//center line
-//Spans::from(vec![Span::raw("
-//███████████████████████████████████████•███████████████████████████████████████
-//")]),
-Spans::from(vec![Span::raw("")]),
-Spans::from(vec![Span::raw("")]),
-Spans::from(vec![Span::raw("")]),
-Spans::from(vec![Span::raw("
- █•█ ")]),
-Spans::from(vec![Span::raw("
- ███•███ ")]),
-Spans::from(vec![Span::raw("
- █████•█████ ")]),
-Spans::from(vec![Span::raw("
- ███████•███████ ")]),
-Spans::from(vec![Span::raw("
- █████████•█████████ ")]),
-Spans::from(vec![Span::raw("
-   ██████████•███████████ ")]),
-Spans::from(vec![Span::raw("
-█    ████████•█████████████")]),
-Spans::from(vec![Span::raw("
- ████     ██████•███████████████")]),
-Spans::from(vec![Span::raw("
- ████████      ███•█████████████████")]),
-Spans::from(vec![Span::raw("
- ████████████      █•███████████████████")]),
-Spans::from(vec![Span::raw("
-  ████████████████         ██████████████████  ")]),
-Spans::from(vec![Span::raw("
-██████████████████           ██████████████████")]),
-Spans::from(vec![Span::raw("
-███████████████████             ███████████████████")]),
-Spans::from(vec![Span::raw("
-█████████████████████             █████████████████████")]),
-Spans::from(vec![Span::raw("
-████████████████████████           ████████████████████████")]),
-Spans::from(vec![Span::raw("
- ████████████████████████████           ████████████████████████")]),
-Spans::from(vec![Span::raw("
- ███████████████████████████████     █      ████████████████████████")]),
-Spans::from(vec![Span::raw("
-   █████████████████████████████████     ███        ██████████████████████  ")]),
-Spans::from(vec![Span::raw("
-██████████████████████████████████████  •  █████          ██████████████████████")]),
-//vim command to find center
-//:exe 'normal '.(virtcol('$')/2).'|'
-// █
-// ▉ ▊ ▋ ▌ ▍ ▎ ▏ ▐ ▔ ▕ ▀ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █ ▉ ▊ ▋ ▌ ▍ ▎ ▏ ▐ ▔ ▕
-// █
-// █
-//FULL BLOCK
-//Unicode: U+2588, UTF-8: E2 96 88
-
-//center line
-Spans::from(vec![Span::raw("
-███████████████████████████████████████  •••  ███████             ██████████████████")]),
-Spans::from(vec![Span::raw("
-███████████████████████████████████████  •••  ███████             ██████████████████")]),
-Spans::from(vec![Span::raw("
-  █████████████████████████████████████   •   ███████             ████████████████  ")]),
-Spans::from(vec![Span::raw("
- ████████████████████████████████████     ███████            █████████████████")]),
-
-Spans::from(vec![Span::raw("
- ███████████████████████████████████     ████████           ████████████████")]),
-Spans::from(vec![Span::raw("
- █████████████████████████████████     ██████████        ███████████████")]),
-Spans::from(vec![Span::raw("
-████████████████████████████████     ███████████████████████████████")]),
-Spans::from(vec![Span::raw("
-███████████████████████████████     ██████████████████████████████")]),
-Spans::from(vec![Span::raw("
-█████████████████████████████     ████████████████████████████")]),
-Spans::from(vec![Span::raw("
-██████████████████████████       █████████████████████████")]),
-Spans::from(vec![Span::raw("
-██████████████████████           █████████████████████")]),
-Spans::from(vec![Span::raw("
-███████████████████             ██████████████████")]),
-Spans::from(vec![Span::raw("
-█████████████████             ████████████████")]),
-Spans::from(vec![Span::raw("
-████████████████           ███████████████")]),
-Spans::from(vec![Span::raw("
-████████████████       ███████████████")]),
-Spans::from(vec![Span::raw("
- ████████████████•████████████████ ")]),
-Spans::from(vec![Span::raw("
- ██████████████•██████████████ ")]),
-Spans::from(vec![Span::raw("
- ████████████•████████████ ")]),
-Spans::from(vec![Span::raw("
- █████████•█████████ ")]),
-Spans::from(vec![Span::raw("
- ███████•███████ ")]),
-Spans::from(vec![Span::raw("
- █████•█████ ")]),
-Spans::from(vec![Span::raw("
- ███•███ ")]),
-Spans::from(vec![Span::raw("
- █•█ ")]),
-//center line
-//Spans::from(vec![Span::raw("
-//███████████████████████████████████████•███████████████████████████████████████
-//")]),
-
-
-        Spans::from(vec![Span::styled(
-            "    ",
-            Style::default().fg(Color::LightBlue),
-        )]),
-        Spans::from(vec![Span::raw("")]),
-        //Spans::from(vec![Span::raw("Press 'p' to access pets, 'a' to add random new pets and 'd' to delete the currently selected pet.")]),
-    ])
-    .alignment(Alignment::Center)
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            //.style(Style::default().fg(Color::Magenta))
-            //.style(Style::default().fg(Color::Black))
-            .style(Style::default().fg(Color::White))
-            //.style(Style::default().fg(Color::Rgb(100,1,1)))
-            //.style(Style::default().fg(Color::Rgb(255,1,1)))
-            //TODO git repo
-            .title("  gnostr  ")
-            .border_type(BorderType::Plain),
-    );
-    home
+#[derive(NetworkBehaviour)]
+struct Behaviour {
+    gossipsub: gossipsub::Behaviour,
+    identify: identify::Behaviour,
+    kademlia: Kademlia<MemoryStore>,
+    relay: relay::Behaviour,
+    request_response: request_response::Behaviour<FileExchangeCodec>,
+    connection_limits: memory_connection_limits::Behaviour,
 }
 
-fn render_pets<'a>(pet_list_state: &ListState) -> (List<'a>, Table<'a>) {
-    let pets = Block::default()
-        .borders(Borders::ALL)
-        .style(Style::default().fg(Color::White))
-        .title("Relays")
-        .border_type(BorderType::Plain);
+fn create_swarm(
+    local_key: identity::Keypair,
+    certificate: Certificate,
+) -> Result<Swarm<Behaviour>> {
+    let local_peer_id = PeerId::from(local_key.public());
+    debug!("Local peer id: {local_peer_id}");
 
-    let pet_list = read_db().expect("can fetch pet list");
-    let items: Vec<_> = pet_list
-        .iter()
-        .map(|pet| {
-            ListItem::new(Spans::from(vec![Span::styled(
-                pet.name.clone(),
-                Style::default(),
-            )]))
-        })
-        .collect();
+    // To content-address message, we can take the hash of message and use it as an ID.
+    let message_id_fn = |message: &gossipsub::Message| {
+        let mut s = DefaultHasher::new();
+        message.data.hash(&mut s);
+        gossipsub::MessageId::from(s.finish().to_string())
+    };
 
-    let selected_pet = pet_list
-        .get(
-            pet_list_state
-                .selected()
-                .expect("there is always a selected pet"),
-        )
-        .expect("exists")
-        .clone();
+    // Set a custom gossipsub configuration
+    let gossipsub_config = gossipsub::ConfigBuilder::default()
+        .validation_mode(gossipsub::ValidationMode::Permissive) // This sets the kind of message validation. The default is Strict (enforce message signing)
+        .message_id_fn(message_id_fn) // content-address messages. No two messages of the same content will be propagated.
+        .mesh_outbound_min(1)
+        .mesh_n_low(1)
+        .flood_publish(true)
+        .build()
+        .expect("Valid config");
 
-    let list = List::new(items).block(pets).highlight_style(
-        Style::default()
-            .bg(Color::Yellow)
-            .fg(Color::Black)
-            .add_modifier(Modifier::BOLD),
-    );
-
-    let pet_detail = Table::new(vec![Row::new(vec![
-        Cell::from(Span::raw(selected_pet.id.to_string())),
-        Cell::from(Span::raw(selected_pet.name)),
-        Cell::from(Span::raw(selected_pet.category)),
-        Cell::from(Span::raw(selected_pet.age.to_string())),
-        Cell::from(Span::raw(selected_pet.created_at.to_string())),
-    ])])
-    .header(Row::new(vec![
-        Cell::from(Span::styled(
-            "ID",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Cell::from(Span::styled(
-            "Name",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Cell::from(Span::styled(
-            "Category",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Cell::from(Span::styled(
-            "Age",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Cell::from(Span::styled(
-            "Created At",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-    ]))
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White))
-            .title("Detail")
-            .border_type(BorderType::Plain),
+    // build a gossipsub network behaviour
+    let mut gossipsub = gossipsub::Behaviour::new(
+        gossipsub::MessageAuthenticity::Signed(local_key.clone()),
+        gossipsub_config,
     )
-    .widths(&[
-        Constraint::Percentage(5),
-        Constraint::Percentage(20),
-        Constraint::Percentage(20),
-        Constraint::Percentage(5),
-        Constraint::Percentage(20),
-    ]);
+    .expect("Correct configuration");
 
-    (list, pet_detail)
-}
+    // Create/subscribe Gossipsub topics
+    gossipsub.subscribe(&gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC))?;
+    gossipsub.subscribe(&gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC))?;
 
-fn read_db() -> Result<Vec<Pet>, Error> {
-    let db_content = fs::read_to_string(DB_PATH)?;
-    let parsed: Vec<Pet> = serde_json::from_str(&db_content)?;
-    Ok(parsed)
-}
+    let transport = {
+        let webrtc = webrtc::tokio::Transport::new(local_key.clone(), certificate);
+        let quic = quic::tokio::Transport::new(quic::Config::new(&local_key));
 
-fn add_random_pet_to_db() -> Result<Vec<Pet>, Error> {
-    let mut rng = rand::thread_rng();
-    let db_content = fs::read_to_string(DB_PATH)?;
-    let mut parsed: Vec<Pet> = serde_json::from_str(&db_content)?;
-    let catsdogs = match rng.gen_range(0, 1) {
-        0 => "cats",
-        _ => "dogs",
+        let mapped = webrtc.or_transport(quic).map(|fut, _| match fut {
+            Either::Right((local_peer_id, conn)) => (local_peer_id, StreamMuxerBox::new(conn)),
+            Either::Left((local_peer_id, conn)) => (local_peer_id, StreamMuxerBox::new(conn)),
+        });
+
+        dns::TokioDnsConfig::system(mapped)?.boxed()
     };
 
-    let random_pet = Pet {
-        id: rng.gen_range(0, 9999999),
-        name: rng.sample_iter(Alphanumeric).take(10).collect(),
-        category: catsdogs.to_owned(),
-        age: rng.gen_range(1, 15),
-        created_at: Utc::now(),
-    };
+    let identify_config = identify::Behaviour::new(
+        identify::Config::new("/ipfs/0.1.0".into(), local_key.public())
+            .with_interval(Duration::from_secs(60)), // do this so we can get timeouts for dropped WebRTC connections
+    );
 
-    parsed.push(random_pet);
-    fs::write(DB_PATH, &serde_json::to_vec(&parsed)?)?;
-    Ok(parsed)
+    // Create a Kademlia behaviour.
+    let mut cfg = KademliaConfig::default();
+    cfg.set_protocol_names(vec![KADEMLIA_PROTOCOL_NAME]);
+    let store = MemoryStore::new(local_peer_id);
+    let kad_behaviour = Kademlia::with_config(local_peer_id, store, cfg);
+
+    let behaviour = Behaviour {
+        gossipsub,
+        identify: identify_config,
+        kademlia: kad_behaviour,
+        relay: relay::Behaviour::new(
+            local_peer_id,
+            relay::Config {
+                max_reservations: usize::MAX,
+                max_reservations_per_peer: 100,
+                reservation_rate_limiters: Vec::default(),
+                circuit_src_rate_limiters: Vec::default(),
+                max_circuits: usize::MAX,
+                max_circuits_per_peer: 100,
+                ..Default::default()
+            },
+        ),
+        request_response: request_response::Behaviour::new(
+            // TODO: support ProtocolSupport::Full
+            iter::once((FILE_EXCHANGE_PROTOCOL, ProtocolSupport::Outbound)),
+            Default::default(),
+        ),
+        connection_limits: memory_connection_limits::Behaviour::with_max_percentage(0.9),
+    };
+    Ok(
+        SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id)
+            .idle_connection_timeout(Duration::from_secs(60))
+            .build(),
+    )
 }
 
-fn remove_pet_at_index(pet_list_state: &mut ListState) -> Result<(), Error> {
-    if let Some(selected) = pet_list_state.selected() {
-        let db_content = fs::read_to_string(DB_PATH)?;
-        let mut parsed: Vec<Pet> = serde_json::from_str(&db_content)?;
-        parsed.remove(selected);
-        fs::write(DB_PATH, &serde_json::to_vec(&parsed)?)?;
-        let amount_pets = read_db().expect("can fetch pet list").len();
-        if selected > 0 {
-            pet_list_state.select(Some(selected - 1));
-        } else {
-            pet_list_state.select(Some(0));
-        }
+async fn read_or_create_certificate(path: &Path) -> Result<Certificate> {
+    if path.exists() {
+        let pem = fs::read_to_string(&path).await?;
+
+        info!("Using existing certificate from {}", path.display());
+
+        return Ok(Certificate::from_pem(&pem)?);
     }
-    Ok(())
+
+    let cert = Certificate::generate(&mut rand::thread_rng())?;
+    fs::write(&path, &cert.serialize_pem().as_bytes()).await?;
+
+    info!(
+        "Generated new certificate and wrote it to {}",
+        path.display()
+    );
+
+    Ok(cert)
+}
+
+async fn read_or_create_identity(path: &Path) -> Result<identity::Keypair> {
+    if path.exists() {
+        let bytes = fs::read(&path).await?;
+
+        info!("Using existing identity from {}", path.display());
+
+        return Ok(identity::Keypair::from_protobuf_encoding(&bytes)?); // This only works for ed25519 but that is what we are using.
+    }
+
+    let identity = identity::Keypair::generate_ed25519();
+
+    fs::write(&path, &identity.to_protobuf_encoding()?).await?;
+
+    info!("Generated new identity and wrote it to {}", path.display());
+
+    Ok(identity)
 }

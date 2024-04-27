@@ -1,3 +1,8 @@
+rust-chat
+go-chat
+js-peer
+target
+vendor
 # flyctl launch added from .gitignore
 **/identity.key
 **/node_modules

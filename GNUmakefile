@@ -52,7 +52,7 @@ export RUSTUP_INIT_SKIP_PATH_CHECK
 export TOOLCHAIN
 export Z
 
-SUBMODULES=:$(shell cat .gitmodules 2>/dev/null | grep path | cut -d ' ' -f 3 || true)
+SUBMODULES=:$(shell cat .gitmodules 2>/dev/null  | grep path | cut -d ' ' -f 3 || touch .gitmodules)
 export SUBMODULES
 
 ifeq ($(verbose),true)
@@ -455,14 +455,9 @@ nvm: ## 	nvm
 nvm-clean: ## 	nvm-clean
 	@rm -rf ~/.nvm
 
--include gnostr.mk
--include gnostr-act.mk
--include gnostr-bot.mk
 -include docker.mk
--include venv.mk
--include clean.mk
 -include cargo.mk
--include tests.mk
+-include fly.mk
 -include go.mk
 
 # vim: set noexpandtab:
