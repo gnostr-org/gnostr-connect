@@ -7,6 +7,7 @@ use rand::{distributions::Alphanumeric, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
+use std::process;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -22,6 +23,7 @@ use tui::{
     Terminal,
 };
 
+use homedir::get_my_home;
 const APP_NAME:&str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -70,6 +72,11 @@ impl From<MenuItem> for usize {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode().expect("can run in raw mode");
 
+    let db_path: &str = &format!(
+        "{:}/.gnostr/data/db.json",
+        get_my_home().unwrap().unwrap().display()
+    );
+    let _ = add_random_pet_to_db(db_path);
     let (tx, rx) = mpsc::channel();
     let tick_rate = Duration::from_millis(200);
     thread::spawn(move || {
@@ -167,7 +174,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
                         )
                         .split(chunks[1]);
-                    let (left, right) = render_pets(&pet_list_state);
+                    let (left, right) = render_pets(db_path, &pet_list_state);
                     rect.render_stateful_widget(left, pets_chunks[0], &mut pet_list_state);
                     rect.render_widget(right, pets_chunks[1]);
 
@@ -185,20 +192,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     //terminal.clear()?;
                     render_home();
                     terminal.show_cursor()?;
-                    disable_raw_mode()?;
                     break;
                 }
                 KeyCode::Char('h') => active_menu_item = MenuItem::Home,
                 KeyCode::Char('r') => active_menu_item = MenuItem::Pets,
                 KeyCode::Char('a') => {
-                    add_random_pet_to_db().expect("can add new random pet");
+                    add_random_pet_to_db(db_path).expect("can add new random pet");
                 }
                 KeyCode::Char('d') => {
-                    remove_pet_at_index(&mut pet_list_state).expect("can remove pet");
+                    remove_pet_at_index(db_path, &mut pet_list_state).expect("can remove pet");
                 }
                 KeyCode::Down => {
                     if let Some(selected) = pet_list_state.selected() {
-                        let amount_pets = read_db().expect("can fetch pet list").len();
+                        let amount_pets = read_db(db_path).expect("can fetch pet list").len();
                         if selected >= amount_pets - 1 {
                             pet_list_state.select(Some(0));
                         } else {
@@ -208,7 +214,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 KeyCode::Up => {
                     if let Some(selected) = pet_list_state.selected() {
-                        let amount_pets = read_db().expect("can fetch pet list").len();
+                        let amount_pets = read_db(db_path).expect("can fetch pet list").len();
                         if selected > 0 {
                             pet_list_state.select(Some(selected - 1));
                         } else {
@@ -222,6 +228,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    clearscreen::clear().expect("failed to clear screen");
     Ok(())
 }
 
@@ -260,21 +267,30 @@ Spans::from(vec![Span::raw("
 Spans::from(vec![Span::raw("
   ████████████████         ██████████████████  ")]),
 Spans::from(vec![Span::raw("
-██████████████████           ██████████████████")]),
+██████████████████           ██████████████████
+")]),
 Spans::from(vec![Span::raw("
-███████████████████             ███████████████████")]),
+███████████████████             ███████████████████
+")]),
 Spans::from(vec![Span::raw("
-█████████████████████             █████████████████████")]),
+█████████████████████             █████████████████████
+")]),
 Spans::from(vec![Span::raw("
-████████████████████████           ████████████████████████")]),
+████████████████████████           ████████████████████████
+")]),
 Spans::from(vec![Span::raw("
- ████████████████████████████           ████████████████████████")]),
+ ████████████████████████████           ████████████████████████
+")]),
 Spans::from(vec![Span::raw("
- ███████████████████████████████     █      ████████████████████████")]),
+███████████████████████████████     █      ████████████████████████
+")]),
 Spans::from(vec![Span::raw("
-   █████████████████████████████████     ███        ██████████████████████  ")]),
+ ██████████████████████████████████     ███        ██████████████████████  ")]),
 Spans::from(vec![Span::raw("
-██████████████████████████████████████  •  █████          ██████████████████████")]),
+████████████████████████████████████     █████          ████████████████████")]),
+Spans::from(vec![Span::raw("
+█████████████████████████████████████     ███████           ██████████████████
+")]),
 //vim command to find center
 //:exe 'normal '.(virtcol('$')/2).'|'
 // █
@@ -286,34 +302,38 @@ Spans::from(vec![Span::raw("
 
 //center line
 Spans::from(vec![Span::raw("
-███████████████████████████████████████  •••  ███████             ██████████████████")]),
-Spans::from(vec![Span::raw("
-███████████████████████████████████████  •••  ███████             ██████████████████")]),
-Spans::from(vec![Span::raw("
-  █████████████████████████████████████   •   ███████             ████████████████  ")]),
-Spans::from(vec![Span::raw("
- ████████████████████████████████████     ███████            █████████████████")]),
+█████████████████████████████████████  •  ███████            █████████████████
+")]),
 
 Spans::from(vec![Span::raw("
- ███████████████████████████████████     ████████           ████████████████")]),
+████████████████████████████████████     ████████           ████████████████
+")]),
 Spans::from(vec![Span::raw("
- █████████████████████████████████     ██████████        ███████████████")]),
+██████████████████████████████████     ██████████        ███████████████
+")]),
 Spans::from(vec![Span::raw("
 ████████████████████████████████     ███████████████████████████████")]),
 Spans::from(vec![Span::raw("
-███████████████████████████████     ██████████████████████████████")]),
+███████████████████████████████     ██████████████████████████████
+")]),
 Spans::from(vec![Span::raw("
-█████████████████████████████     ████████████████████████████")]),
+█████████████████████████████     ████████████████████████████
+")]),
 Spans::from(vec![Span::raw("
-██████████████████████████       █████████████████████████")]),
+██████████████████████████       █████████████████████████
+")]),
 Spans::from(vec![Span::raw("
-██████████████████████           █████████████████████")]),
+██████████████████████           █████████████████████
+")]),
 Spans::from(vec![Span::raw("
-███████████████████             ██████████████████")]),
+███████████████████             ██████████████████
+")]),
 Spans::from(vec![Span::raw("
-█████████████████             ████████████████")]),
+█████████████████             ████████████████
+")]),
 Spans::from(vec![Span::raw("
-████████████████           ███████████████")]),
+████████████████           ███████████████
+")]),
 Spans::from(vec![Span::raw("
 ████████████████       ███████████████")]),
 Spans::from(vec![Span::raw("
@@ -361,14 +381,14 @@ Spans::from(vec![Span::raw("
     home
 }
 
-fn render_pets<'a>(pet_list_state: &ListState) -> (List<'a>, Table<'a>) {
+fn render_pets<'a>(db_path: &str, pet_list_state: &ListState) -> (List<'a>, Table<'a>) {
     let pets = Block::default()
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::White))
         .title("Relays")
         .border_type(BorderType::Plain);
 
-    let pet_list = read_db().expect("can fetch pet list");
+    let pet_list = read_db(db_path).expect("can fetch pet list");
     let items: Vec<_> = pet_list
         .iter()
         .map(|pet| {
@@ -442,15 +462,18 @@ fn render_pets<'a>(pet_list_state: &ListState) -> (List<'a>, Table<'a>) {
     (list, pet_detail)
 }
 
-fn read_db() -> Result<Vec<Pet>, Error> {
-    let db_content = fs::read_to_string(DB_PATH)?;
+fn read_db(db_path: &str) -> Result<Vec<Pet>, Error> {
+    let db_content = fs::read_to_string(db_path)?;
+    if db_content.len() < 3 {
+        let _ = add_random_pet_to_db(db_path);
+    }
     let parsed: Vec<Pet> = serde_json::from_str(&db_content)?;
     Ok(parsed)
 }
 
-fn add_random_pet_to_db() -> Result<Vec<Pet>, Error> {
+fn add_random_pet_to_db(db_path: &str) -> Result<Vec<Pet>, Error> {
     let mut rng = rand::thread_rng();
-    let db_content = fs::read_to_string(DB_PATH)?;
+    let db_content = fs::read_to_string(db_path)?;
     let mut parsed: Vec<Pet> = serde_json::from_str(&db_content)?;
     let catsdogs = match rng.gen_range(0, 1) {
         0 => "cats",
@@ -466,17 +489,17 @@ fn add_random_pet_to_db() -> Result<Vec<Pet>, Error> {
     };
 
     parsed.push(random_pet);
-    fs::write(DB_PATH, &serde_json::to_vec(&parsed)?)?;
+    fs::write(db_path, &serde_json::to_vec(&parsed)?)?;
     Ok(parsed)
 }
 
-fn remove_pet_at_index(pet_list_state: &mut ListState) -> Result<(), Error> {
+fn remove_pet_at_index(db_path: &str, pet_list_state: &mut ListState) -> Result<(), Error> {
     if let Some(selected) = pet_list_state.selected() {
-        let db_content = fs::read_to_string(DB_PATH)?;
+        let db_content = fs::read_to_string(db_path)?;
         let mut parsed: Vec<Pet> = serde_json::from_str(&db_content)?;
         parsed.remove(selected);
-        fs::write(DB_PATH, &serde_json::to_vec(&parsed)?)?;
-        let amount_pets = read_db().expect("can fetch pet list").len();
+        fs::write(db_path, &serde_json::to_vec(&parsed)?)?;
+        let amount_pets = read_db(db_path).expect("can fetch pet list").len();
         if selected > 0 {
             pet_list_state.select(Some(selected - 1));
         } else {
