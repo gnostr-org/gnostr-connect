@@ -1,5 +1,9 @@
 mod protocol;
 
+use gnostr_bins::get_weeble;
+use gnostr_bins::get_wobble;
+use gnostr_bins::get_blockheight;
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures::future::{select, Either};
@@ -323,9 +327,16 @@ async fn main() -> Result<()> {
                     debug!("Failed to run Kademlia bootstrap: {e:?}");
                 }
 
+                //let message = format!(
+                //    "LINE:310:Hello world! Sent from the gnostr-chat at: {:4}s",
+                //    now.elapsed().as_secs_f64()
+                //);
                 let message = format!(
-                    "LINE:310:Hello world! Sent from the gnostr-chat at: {:4}s",
-                    now.elapsed().as_secs_f64()
+                    "{:4}/{}/{}/{}",
+                    now.elapsed().as_secs_f64(),
+                    gnostr_bins::get_weeble().unwrap(),
+                    gnostr_bins::get_blockheight().unwrap(),
+                    gnostr_bins::get_wobble().unwrap(),
                 );
 
                 if let Err(err) = swarm.behaviour_mut().gossipsub.publish(
