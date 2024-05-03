@@ -27,11 +27,11 @@ jobs:
       - run: cargo clippy
       - run: cargo test
   go-check:
-    uses: pl-strflt/uci/.github/workflows/go-check.yml@v0.0
+    uses: libp2p/go-libp2p/.github/workflows/go-check.yml@master
     if: ${{ !env.ACT }}
     with:
       go-version: '1.21.x'
   go-test:
-    uses: pl-strflt/uci/.github/workflows/go-test.yml@v0.0
+    uses: libp2p/go-libp2p/.github/workflows/go-test.yml@master
     with:
       go-versions: '["1.21.x"]'
