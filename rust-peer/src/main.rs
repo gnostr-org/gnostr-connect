@@ -26,7 +26,7 @@ use std::path::Path;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tokio::fs;
 
@@ -40,7 +40,7 @@ const PORT_WEBRTC: u16 = 9090;
 const PORT_QUIC: u16 = 9091;
 const LOCAL_KEY_PATH: &str = "./local_key";
 const LOCAL_CERT_PATH: &str = "./cert.pem";
-//const GOSSIPSUB_CHAT_TOPIC: &str = "gnostr";
+const GOSSIPSUB_CHAT_TOPIC: &str = "universal-connectivity";
 const GOSSIPSUB_CHAT_FILE_TOPIC: &str = "universal-connectivity-file";
 const BOOTSTRAP_NODES: [&str; 4] = [
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
@@ -49,13 +49,8 @@ const BOOTSTRAP_NODES: [&str; 4] = [
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
 ];
 
-const GNOSTR_CONNECT_DEFAULT_SEEDER: &str =
-    "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
-   ///ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
-   ///dns/gnostr-connect.fly.dev/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
-
 #[derive(Debug, Parser)]
-#[clap(name = "gnostr-chat")]
+#[clap(name = "universal connectivity rust peer")]
 struct Opt {
     /// Address to listen on.
     #[clap(long, default_value = "0.0.0.0")]
@@ -68,18 +63,9 @@ struct Opt {
     /// Nodes to connect to on startup. Can be specified several times.
     #[clap(
         long,
-        //default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1"
-        default_value = GNOSTR_CONNECT_DEFAULT_SEEDER
         default_value = "/dns/universal-connectivity-rust-peer.fly.dev/udp/9091/quic-v1"
     )]
     connect: Vec<Multiaddr>,
-    /// Topic
-    #[clap(
-        long,
-        //default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1"
-        default_value = "gnostr"
-    )]
-    topic: String,
 }
 
 /// An example WebRTC peer that will accept connections
@@ -95,7 +81,7 @@ async fn main() -> Result<()> {
         .await
         .context("Failed to read certificate")?;
 
-    let mut swarm = create_swarm(local_key, webrtc_cert, opt.topic.clone())?;
+    let mut swarm = create_swarm(local_key, webrtc_cert)?;
 
     let address_webrtc = Multiaddr::from(opt.listen_address)
         .with(Protocol::Udp(PORT_WEBRTC))
@@ -125,8 +111,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    //let chat_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC).hash();
-    let chat_topic_hash = gossipsub::IdentTopic::new(opt.topic).hash();
+    let chat_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC).hash();
     let file_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC).hash();
 
     let mut tick = futures_timer::Delay::new(TICK_INTERVAL);
@@ -170,38 +155,13 @@ async fn main() -> Result<()> {
                         message,
                     },
                 )) => {
-                    //`source`, `data`, `sequence_number`, `topic`
-                        //nanoseconds
-                        //println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
                     if message.topic == chat_topic_hash {
-                        //println!("message.topic={}",message.topic);
-                        //println!("message.topic={}",message.topic);
-                        //println!("chat_topic_hash={}",chat_topic_hash);
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 100000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 10000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000 );
-                        print!(
-                            "{}:{}:{:}:{}\n",
-                            message.topic,
-                            message.sequence_number.unwrap(),
-                            message.source.unwrap().to_string(),
-                            String::from_utf8(message.data).unwrap().to_string()
-                        );
-                        //info!(
-                        //    "{:}: {}",
-                        //    message.source.unwrap().to_string(),
-                        //    String::from_utf8(message.data).unwrap().to_string()
-                        //);
-                        continue;
-                    } else {
-                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
-                        info!("else.....");
                         info!(
-                            "off topic:{:?}: {}",
+                            "Received message from {:?}: {}",
                             message.source,
-                            String::from_utf8(message.data.clone()).unwrap().to_string()
+                            String::from_utf8(message.data).unwrap()
                         );
+                        continue;
                     }
 
                     if message.topic == file_topic_hash {
@@ -325,18 +285,6 @@ async fn main() -> Result<()> {
                 if let Err(e) = swarm.behaviour_mut().kademlia.bootstrap() {
                     debug!("Failed to run Kademlia bootstrap: {e:?}");
                 }
-
-                let message = format!(
-                    "Hello world! Sent from the gnostr-chat at: {:4}s",
-                    now.elapsed().as_secs_f64()
-                );
-
-                if let Err(err) = swarm.behaviour_mut().gossipsub.publish(
-                    gossipsub::IdentTopic::new(chat_topic_hash.to_string()),
-                    message.as_bytes(),
-                ) {
-                    error!("Failed to publish periodic message: {err}")
-                }
             }
         }
     }
@@ -355,7 +303,6 @@ struct Behaviour {
 fn create_swarm(
     local_key: identity::Keypair,
     certificate: Certificate,
-    topic: String
 ) -> Result<Swarm<Behaviour>> {
     let local_peer_id = PeerId::from(local_key.public());
     debug!("Local peer id: {local_peer_id}");
@@ -385,7 +332,7 @@ fn create_swarm(
     .expect("Correct configuration");
 
     // Create/subscribe Gossipsub topics
-    gossipsub.subscribe(&gossipsub::IdentTopic::new(topic))?;
+    gossipsub.subscribe(&gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC))?;
     gossipsub.subscribe(&gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC))?;
 
     let transport = {
