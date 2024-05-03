@@ -13,9 +13,13 @@ jobs:
       RUSTFLAGS: '-Dwarnings' # Never tolerate warnings.
     defaults:
       run:
-        working-directory: ./rust-peer
+        working-directory: ./chat
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+          set-safe-directory: 'true'
+          fetch-depth: '0'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt -- --check
