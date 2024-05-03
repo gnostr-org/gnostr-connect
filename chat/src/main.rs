@@ -332,7 +332,7 @@ async fn main() -> Result<()> {
 
 		let now = tokio::time::Instant::now();
                 let message = format!(
-                    "Hello world! Sent from the gnostr-chat at: {:4}s",
+                    "gnostr-chat::main::loop:{:4}s",
                     now.elapsed().as_secs_f64()
                 );
 
