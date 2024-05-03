@@ -29,6 +29,8 @@ use std::{
     time::{Duration /*, Instant */},
 };
 use tokio::fs;
+//use std::time::Instant;
+use tokio::time::Instant;
 
 use crate::protocol::FileRequest;
 
@@ -68,9 +70,9 @@ struct Opt {
     /// Nodes to connect to on startup. Can be specified several times.
     #[clap(
         long,
-        //default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1"
-        default_value = GNOSTR_CONNECT_DEFAULT_SEEDER
-        default_value = "/dns/universal-connectivity-rust-peer.fly.dev/udp/9091/quic-v1"
+        //default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1",
+        //default_value = GNOSTR_CONNECT_DEFAULT_SEEDER,
+        default_value = "/dns/universal-connectivity-rust-peer.fly.dev/udp/9091/quic-v1",
     )]
     connect: Vec<Multiaddr>,
     /// Topic
@@ -326,6 +328,7 @@ async fn main() -> Result<()> {
                     debug!("Failed to run Kademlia bootstrap: {e:?}");
                 }
 
+		let now = tokio::time::Instant::now();
                 let message = format!(
                     "Hello world! Sent from the gnostr-chat at: {:4}s",
                     now.elapsed().as_secs_f64()
