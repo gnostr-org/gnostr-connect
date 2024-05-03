@@ -55,8 +55,8 @@ const BOOTSTRAP_NODES: [&str; 6] = [
 
 const GNOSTR_CONNECT_DEFAULT_SEEDER: &str =
     "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
-   ///ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
-   ///dns/gnostr-connect.fly.dev/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
+///ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
+///dns/gnostr-connect.fly.dev/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
 
 #[derive(Debug, Parser)]
 #[clap(name = "gnostr-chat")]
@@ -175,8 +175,8 @@ async fn main() -> Result<()> {
                     },
                 )) => {
                     //`source`, `data`, `sequence_number`, `topic`
-                        //nanoseconds
-                        //println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
+                    //nanoseconds
+                    //println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
                     if message.topic == chat_topic_hash {
                         //println!("message.topic={}",message.topic);
                         //println!("message.topic={}",message.topic);
@@ -199,7 +199,10 @@ async fn main() -> Result<()> {
                         //);
                         continue;
                     } else {
-                        println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
+                        println!(
+                            "message.sequence_number={:?}",
+                            message.sequence_number.unwrap() / 1000000000
+                        );
                         info!("else.....");
                         info!(
                             "off topic:{:?}: {}",
@@ -330,7 +333,7 @@ async fn main() -> Result<()> {
                     debug!("Failed to run Kademlia bootstrap: {e:?}");
                 }
 
-		let now = tokio::time::Instant::now();
+                let now = tokio::time::Instant::now();
                 let message = format!(
                     "Hello world! Sent from the gnostr-chat at: {:4}s",
                     now.elapsed().as_secs_f64()
@@ -360,7 +363,7 @@ struct Behaviour {
 fn create_swarm(
     local_key: identity::Keypair,
     certificate: Certificate,
-    topic: String
+    topic: String,
 ) -> Result<Swarm<Behaviour>> {
     let local_peer_id = PeerId::from(local_key.public());
     debug!("Local peer id: {local_peer_id}");
