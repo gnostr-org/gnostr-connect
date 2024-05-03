@@ -21,7 +21,7 @@ use libp2p::{
 };
 use libp2p_webrtc as webrtc;
 use libp2p_webrtc::tokio::Certificate;
-use log::{debug, error, info /*, warn*/};
+use log::{debug, error, info, warn};
 use protocol::FileExchangeCodec;
 use std::iter;
 use std::net::IpAddr;
@@ -121,9 +121,11 @@ async fn main() -> Result<()> {
         }
     }
 
-    for peer in &BOOTSTRAP_NODES {
+    for peer in BOOTSTRAP_NODES {
+        println!("{}",peer);
         let multiaddr: Multiaddr = peer.parse().expect("Failed to parse Multiaddr");
         if let Err(e) = swarm.dial(multiaddr) {
+        warn!("{}",peer);
             debug!("Failed to dial {peer}: {e}");
         }
     }
@@ -227,7 +229,7 @@ async fn main() -> Result<()> {
                         continue;
                     }
 
-                    error!("Unexpected gossipsub topic hash: {:?}", message.topic);
+                    info!("Unexpected gossipsub topic hash: {:?}", message.topic);
                 }
                 SwarmEvent::Behaviour(BehaviourEvent::Gossipsub(
                     libp2p::gossipsub::Event::Subscribed { peer_id, topic },
