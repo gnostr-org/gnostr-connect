@@ -13,7 +13,7 @@ jobs:
       RUSTFLAGS: '-Dwarnings' # Never tolerate warnings.
     defaults:
       run:
-        working-directory: ./rust-chat
+        working-directory: ./chat
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
