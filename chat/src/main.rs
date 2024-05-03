@@ -44,7 +44,9 @@ const LOCAL_KEY_PATH: &str = "./local_key";
 const LOCAL_CERT_PATH: &str = "./cert.pem";
 //const GOSSIPSUB_CHAT_TOPIC: &str = "gnostr";
 const GOSSIPSUB_CHAT_FILE_TOPIC: &str = "universal-connectivity-file";
-const BOOTSTRAP_NODES: [&str; 4] = [
+const BOOTSTRAP_NODES: [&str; 6] = [
+    "/dnsaddr/gnostr-connect.fly.dev/p2p/12D3KooWCfCYQeLRZyZBNdS1M7WWSBRM5ZtyuBfUN4Fxvem4xbHH",
+    "/dnsaddr/gnostr-connect.fly.dev/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89",
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
