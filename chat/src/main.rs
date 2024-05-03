@@ -1,5 +1,8 @@
 mod protocol;
 
+//  use std::time::Instant;
+//  use tokio::time::Instant;
+use crate::protocol::FileRequest;
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures::future::{select, Either};
@@ -18,7 +21,7 @@ use libp2p::{
 };
 use libp2p_webrtc as webrtc;
 use libp2p_webrtc::tokio::Certificate;
-use log::{debug, error, info, warn};
+use log::{debug, error, info /*, warn*/};
 use protocol::FileExchangeCodec;
 use std::iter;
 use std::net::IpAddr;
@@ -29,10 +32,6 @@ use std::{
     time::Duration,
 };
 use tokio::fs;
-//use std::time::Instant;
-use tokio::time::Instant;
-
-use crate::protocol::FileRequest;
 
 const TICK_INTERVAL: Duration = Duration::from_secs(15);
 const KADEMLIA_PROTOCOL_NAME: StreamProtocol = StreamProtocol::new("/ipfs/kad/1.0.0");
@@ -53,8 +52,8 @@ const BOOTSTRAP_NODES: [&str; 6] = [
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
 ];
 
-const GNOSTR_CONNECT_DEFAULT_SEEDER: &str =
-    "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
+//const GNOSTR_CONNECT_DEFAULT_SEEDER: &str =
+//  "/ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89";
 ///ip4/37.16.6.234/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
 ///dns/gnostr-connect.fly.dev/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89
 
@@ -185,12 +184,12 @@ async fn main() -> Result<()> {
                         //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 100000000 );
                         //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 10000000 );
                         //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000 );
-                        print!(
+                        println!(
                             "{}:{}:{:}:{}\n",
                             message.topic,
                             message.sequence_number.unwrap(),
-                            message.source.unwrap().to_string(),
-                            String::from_utf8(message.data).unwrap().to_string()
+                            message.source.unwrap(),
+                            String::from_utf8(message.data).unwrap()
                         );
                         //debug!(
                         //    "{:}: {}",
