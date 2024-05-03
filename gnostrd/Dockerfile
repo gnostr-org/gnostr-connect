@@ -21,4 +21,4 @@ RUN --mount=type=cache,target=/var/cache/apk apk add bind-tools
 
 ENV RUST_BACKTRACE=1
 
-CMD ["gnostr-chat"]
+CMD ["gnostrd"]
