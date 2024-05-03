@@ -13,19 +13,25 @@ jobs:
       RUSTFLAGS: '-Dwarnings' # Never tolerate warnings.
     defaults:
       run:
-        working-directory: ./rust-peer
+        working-directory: ./chat
     steps:
       - uses: actions/checkout@v3
+        with:
+          depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        if: ${{ !env.ACT }}
+      - run: rustup component add rustfmt
+      - run: rustup component add clippy
       - run: cargo fmt -- --check
       - run: cargo clippy
       - run: cargo test
   go-check:
-    uses: pl-strflt/uci/.github/workflows/go-check.yml@v0.0
+    uses: libp2p/go-libp2p/.github/workflows/go-check.yml@master
+    if: ${{ !env.ACT }}
     with:
       go-version: '1.21.x'
   go-test:
-    uses: pl-strflt/uci/.github/workflows/go-test.yml@v0.0
+    uses: libp2p/go-libp2p/.github/workflows/go-test.yml@master
     with:
       go-versions: '["1.21.x"]'

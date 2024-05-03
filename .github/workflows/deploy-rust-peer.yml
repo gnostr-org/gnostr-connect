@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - "main"
+      - "master"
   workflow_dispatch:
 
 jobs:
@@ -9,10 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./rust-peer
+        working-directory: ./rust-chat
     steps:
       - uses: actions/checkout@v3
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        if: ${{ !env.ACT }}
