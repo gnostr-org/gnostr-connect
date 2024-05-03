@@ -151,18 +151,18 @@ async fn main() -> Result<()> {
                     info!("Listening on {p2p_address}");
                 }
                 SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                    info!("Connected to {peer_id}");
+                    debug!("Connected to {peer_id}");
                 }
                 SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                    warn!("Failed to dial {peer_id:?}: {error}");
+                    debug!("Failed to dial {peer_id:?}: {error}");
                 }
                 SwarmEvent::IncomingConnectionError { error, .. } => {
-                    warn!("{:#}", anyhow::Error::from(error))
+                    debug!("{:#}", anyhow::Error::from(error))
                 }
                 SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
-                    warn!("Connection to {peer_id} closed: {cause:?}");
+                    debug!("Connection to {peer_id} closed: {cause:?}");
                     swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
-                    info!("Removed {peer_id} from the routing table (if it was in there).");
+                    debug!("Removed {peer_id} from the routing table (if it was in there).");
                 }
                 SwarmEvent::Behaviour(BehaviourEvent::Relay(e)) => {
                     debug!("{:?}", e);
@@ -192,7 +192,7 @@ async fn main() -> Result<()> {
                             message.source.unwrap().to_string(),
                             String::from_utf8(message.data).unwrap().to_string()
                         );
-                        //info!(
+                        //debug!(
                         //    "{:}: {}",
                         //    message.source.unwrap().to_string(),
                         //    String::from_utf8(message.data).unwrap().to_string()
@@ -210,7 +210,7 @@ async fn main() -> Result<()> {
 
                     if message.topic == file_topic_hash {
                         let file_id = String::from_utf8(message.data).unwrap();
-                        info!("Received file {} from {:?}", file_id, message.source);
+                        debug!("Received file {} from {:?}", file_id, message.source);
 
                         let request_id = swarm.behaviour_mut().request_response.send_request(
                             &message.source.unwrap(),
@@ -218,7 +218,7 @@ async fn main() -> Result<()> {
                                 file_id: file_id.clone(),
                             },
                         );
-                        info!(
+                        debug!(
                             "Requested file {} to {:?}: req_id:{:?}",
                             file_id, message.source, request_id
                         );
@@ -233,7 +233,7 @@ async fn main() -> Result<()> {
                     debug!("{peer_id} subscribed to {topic}");
                 }
                 SwarmEvent::Behaviour(BehaviourEvent::Identify(e)) => {
-                    info!("BehaviourEvent::Identify {:?}", e);
+                    debug!("BehaviourEvent::Identify {:?}", e);
 
                     if let identify::Event::Error { peer_id, error } = e {
                         match error {
@@ -242,7 +242,7 @@ async fn main() -> Result<()> {
                                 // maybe there's a way to get this with TransportEvent
                                 // but for now remove the peer from routing table if there's an Identify timeout
                                 swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
-                                info!("Removed {peer_id} from the routing table (if it was in there).");
+                                debug!("Removed {peer_id} from the routing table (if it was in there).");
                             }
                             _ => {
                                 debug!("{error}");
@@ -278,7 +278,7 @@ async fn main() -> Result<()> {
                                     .behaviour_mut()
                                     .kademlia
                                     .add_address(&peer_id, webrtc_address.clone());
-                                info!("Added {webrtc_address} to the routing table.");
+                                debug!("Added {webrtc_address} to the routing table.");
                             }
                         }
                     }
@@ -297,7 +297,7 @@ async fn main() -> Result<()> {
                         );
                     }
                     request_response::Message::Response { response, .. } => {
-                        info!(
+                        debug!(
                             "request_response::Message::Response: size:{}",
                             response.file_body.len()
                         );
@@ -450,7 +450,7 @@ async fn read_or_create_certificate(path: &Path) -> Result<Certificate> {
     if path.exists() {
         let pem = fs::read_to_string(&path).await?;
 
-        info!("Using existing certificate from {}", path.display());
+        debug!("Using existing certificate from {}", path.display());
 
         return Ok(Certificate::from_pem(&pem)?);
     }
@@ -458,7 +458,7 @@ async fn read_or_create_certificate(path: &Path) -> Result<Certificate> {
     let cert = Certificate::generate(&mut rand::thread_rng())?;
     fs::write(&path, &cert.serialize_pem().as_bytes()).await?;
 
-    info!(
+    debug!(
         "Generated new certificate and wrote it to {}",
         path.display()
     );
@@ -470,7 +470,7 @@ async fn read_or_create_identity(path: &Path) -> Result<identity::Keypair> {
     if path.exists() {
         let bytes = fs::read(&path).await?;
 
-        info!("Using existing identity from {}", path.display());
+        debug!("Using existing identity from {}", path.display());
 
         return Ok(identity::Keypair::from_protobuf_encoding(&bytes)?); // This only works for ed25519 but that is what we are using.
     }
