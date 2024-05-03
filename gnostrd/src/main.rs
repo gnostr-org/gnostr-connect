@@ -61,10 +61,23 @@ struct Opt {
     /// Nodes to connect to on startup. Can be specified several times.
     #[clap(
         long,
-        //default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1"
-        default_value = GNOSTR_CONNECT_DEFAULT_SEEDER
+        default_value = "/dns/gnostr-connect.fly.dev/udp/9091/quic-v1"
+        //default_value = GNOSTR_CONNECT_DEFAULT_SEEDER
     )]
     connect: Vec<Multiaddr>,
+    /// Nostr Private Key
+    #[clap(
+        long,
+        default_value = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+"
+    )]
+    sec: String,
+    /// Chat Topic
+    #[clap(
+        long,
+        default_value = "gnostr"
+    )]
+    topic: String,
 }
 
 /// An example WebRTC peer that will accept connections
@@ -104,10 +117,13 @@ async fn main() -> Result<()> {
         }
     }
 
-    let chat_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC).hash();
-    //println!("{}",chat_topic_hash);
+    //let chat_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_TOPIC).hash();
+    let chat_topic_hash = gossipsub::IdentTopic::new(opt.topic).hash();
+    println!("{}",chat_topic_hash);
+    let secret = gossipsub::IdentTopic::new(opt.sec).hash();
+    println!("{}",secret);
     let file_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC).hash();
-    //println!("{}",file_topic_hash);
+    println!("{}",file_topic_hash);
 
     let mut tick = futures_timer::Delay::new(TICK_INTERVAL);
 
