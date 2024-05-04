@@ -21,8 +21,9 @@ use libp2p::{
 };
 use libp2p_webrtc as webrtc;
 use libp2p_webrtc::tokio::Certificate;
-use log::{debug, error, info /*, warn*/};
+use log::{debug, error, info, trace, warn};
 use protocol::FileExchangeCodec;
+use std::io::Write;
 use std::iter;
 use std::net::IpAddr;
 use std::path::Path;
@@ -85,10 +86,32 @@ struct Opt {
     topic: String,
 }
 
+fn init_logger() {
+    use env_logger::Builder;
+    Builder::from_env(env_logger::Env::default().filter_or("LOG_LEVEL", "info"))
+        .format(|buf, record| writeln!(buf, "{}: {}: {}", record.level(), record.target(),record.args()))
+        //.format_timestamp(None)
+        .format_timestamp_nanos()
+        //.format_level(false)
+        //.write_style_or("MY_LOG_STYLE", "always")
+        .init();
+}
+
 /// An example WebRTC peer that will accept connections
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    init_logger();
+    info!(x="45"; "Some message");
+    info!(x="12"; "Another message {x}", x="12");
+    #[cfg(debug_assertions)]
+    use std::io::Write;
+    //env_logger::builder()
+    //  .format(|buf, record| writeln!(buf, "{}: {}", record.level(), record.args()))
+    //.init();
+    //#[cfg(not(debug_assertions))]
+    //env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+    //.format_timestamp(None)
+    //.init();
 
     let opt = Opt::parse();
     let local_key = read_or_create_identity(Path::new(LOCAL_KEY_PATH))
@@ -121,7 +144,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    for peer in &BOOTSTRAP_NODES {
+    for peer in BOOTSTRAP_NODES {
+        info!("{}", peer);
         let multiaddr: Multiaddr = peer.parse().expect("Failed to parse Multiaddr");
         if let Err(e) = swarm.dial(multiaddr) {
             debug!("Failed to dial {peer}: {e}");
@@ -177,14 +201,25 @@ async fn main() -> Result<()> {
                     //nanoseconds
                     //println!("message.sequence_number={:?}",message.sequence_number.unwrap() / 1000000000 );
                     if message.topic == chat_topic_hash {
-                        //println!("message.topic={}",message.topic);
-                        //println!("message.topic={}",message.topic);
-                        //println!("chat_topic_hash={}",chat_topic_hash);
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 100000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 10000000 );
-                        //println!("message.sequence_number={:?}\n",message.sequence_number.unwrap() / 1000000 );
-                        println!(
+                        debug!("message.topic={}", message.topic);
+                        debug!("chat_topic_hash={}", chat_topic_hash);
+                        debug!(
+                            "message.sequence_number={:?}\n",
+                            message.sequence_number.unwrap() / 1000000000
+                        );
+                        debug!(
+                            "message.sequence_number={:?}\n",
+                            message.sequence_number.unwrap() / 100000000
+                        );
+                        debug!(
+                            "message.sequence_number={:?}\n",
+                            message.sequence_number.unwrap() / 10000000
+                        );
+                        debug!(
+                            "message.sequence_number={:?}\n",
+                            message.sequence_number.unwrap() / 1000000
+                        );
+                        debug!(
                             "{}:{}:{:}:{}\n",
                             message.topic,
                             message.sequence_number.unwrap(),
@@ -227,7 +262,7 @@ async fn main() -> Result<()> {
                         continue;
                     }
 
-                    error!("Unexpected gossipsub topic hash: {:?}", message.topic);
+                    info!("Unexpected gossipsub topic hash: {:?}", message.topic);
                 }
                 SwarmEvent::Behaviour(BehaviourEvent::Gossipsub(
                     libp2p::gossipsub::Event::Subscribed { peer_id, topic },
