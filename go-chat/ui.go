@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os/exec"
+	//"os/exec"
 	"runtime"
 	"time"
 
@@ -46,7 +46,7 @@ type ChatUI struct {
 //    // this to a string or else we will see garbage printed out in our console
 //    // this is how we convert it to a string
 //    //fmt.Println("Command Successfully Executed")
-//    commit_hash := string(out[:])
+//    //commit_hash := string(out[:])
 //    //fmt.Println(output)
 //
 //    //// let's try the pwd command herer
@@ -83,25 +83,25 @@ func NewChatUI(cr *ChatRoom) *ChatUI {
 
 	app := tview.NewApplication()
 
-	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	//out, err := exec.Command("git", "rev-parse", "HEAD").Output()
 
 	// if there is an error with our execution
 	// handle it here
-	if err != nil {
-		fmt.Printf("%s", err)
-	}
+	//if err != nil {
+	//	fmt.Printf("%s", err)
+	//}
 	// as the out variable defined above is of type []byte we need to convert
 	// this to a string or else we will see garbage printed out in our console
 	// this is how we convert it to a string
 	//fmt.Println("Command Successfully Executed")
-	commit_hash := string(out[:])
+	//commit_hash := string(out[:])
 
 	// make a text view to contain our chat messages
 	msgBox := tview.NewTextView()
 	msgBox.SetDynamicColors(true)
 	msgBox.SetBorder(true)
-	//msgBox.SetTitle(fmt.Sprintf("Topic: %s", cr.roomName))
-	msgBox.SetTitle(fmt.Sprintf("Topic: %s", commit_hash))
+	msgBox.SetTitle(fmt.Sprintf("Topic: %s", cr.roomName))
+	//msgBox.SetTitle(fmt.Sprintf("Topic: %s", commit_hash))
 
 	// text views are io.Writers, but they don't automatically refresh.
 	// this sets a change handler to force the app to redraw when we get
