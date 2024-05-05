@@ -23,7 +23,7 @@ cargo-build:### 	cargo build
 	@. $(HOME)/.cargo/env
 	@RUST_BACKTRACE=all cargo b $(QUIET)
 cargo-i:cargo-install
-cargo-install:### 	cargo install --path jj
+cargo-install:### 	cargo install --path .
 	#@. $(HOME)/.cargo/env
 	@cargo install --path .
 cargo-br:cargo-build-release### 	cargo-br
@@ -43,7 +43,7 @@ cargo-t:cargo-test
 cargo-test:### 	cargo-test
 	@. $(HOME)/.cargo/env
 	#@cargo test
-	@cargo test -p jj-cli --test runner
+	@cargo test -p gnostr-chat #--test runner
 cargo-report:### 	cargo-report
 	@. $(HOME)/.cargo/env
 	cargo report future-incompatibilities --id 1

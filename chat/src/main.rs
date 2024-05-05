@@ -21,7 +21,9 @@ use libp2p::{
 };
 use libp2p_webrtc as webrtc;
 use libp2p_webrtc::tokio::Certificate;
+#[cfg(not(test))]
 use log::{debug, error, info, trace, warn};
+
 use protocol::FileExchangeCodec;
 use std::io::Write;
 use std::iter;
@@ -32,9 +34,18 @@ use std::{
     hash::{Hash, Hasher},
     time::Duration,
 };
+use duration_str::parse;
+
 use tokio::fs;
 
+#[cfg(test)]
+use std::{println as debug, println as error, println as info, println as trace, println as warn}; // Workaround to use prinltn! for logs.
+
+#[cfg(not(debug_assertions))]
 const TICK_INTERVAL: Duration = Duration::from_secs(15);
+#[cfg(debug_assertions)]
+const TICK_INTERVAL: Duration = Duration::from_secs(2);
+
 const KADEMLIA_PROTOCOL_NAME: StreamProtocol = StreamProtocol::new("/ipfs/kad/1.0.0");
 const FILE_EXCHANGE_PROTOCOL: StreamProtocol =
     StreamProtocol::new("/universal-connectivity-file/1");
@@ -44,9 +55,8 @@ const LOCAL_KEY_PATH: &str = "./local_key";
 const LOCAL_CERT_PATH: &str = "./cert.pem";
 //const GOSSIPSUB_CHAT_TOPIC: &str = "gnostr";
 const GOSSIPSUB_CHAT_FILE_TOPIC: &str = "universal-connectivity-file";
-const BOOTSTRAP_NODES: [&str; 6] = [
-    "/dnsaddr/gnostr-connect.fly.dev/p2p/12D3KooWCfCYQeLRZyZBNdS1M7WWSBRM5ZtyuBfUN4Fxvem4xbHH",
-    "/dnsaddr/gnostr-connect.fly.dev/udp/9091/quic-v1/p2p/12D3KooWSAXQZuzHEKgau7HtyPc3EzArc8VG3Nh9TTYx4Sumip89",
+const BOOTSTRAP_NODES: [&str; 5] = [
+    "/dnsaddr/universal-connectiviy.fly.io/p2p/12D3KooWGahRw3ZnM4gAyd9FK75v4Bp5keFYTvkcAwhpEm28wbV3",
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
     "/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
@@ -84,12 +94,27 @@ struct Opt {
         default_value = "gnostr"
     )]
     topic: String,
+    // Tick
+    #[clap(
+        long,
+        default_value = "10"
+    )]
+    tick: String,
+
 }
 
 fn init_logger() {
     use env_logger::Builder;
-    Builder::from_env(env_logger::Env::default().filter_or("LOG_LEVEL", "info"))
-        .format(|buf, record| writeln!(buf, "{}: {}: {}", record.level(), record.target(),record.args()))
+    Builder::from_env(env_logger::Env::default().filter_or("LOG_LEVEL", "None"))
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}: {}: {}",
+                record.level(),
+                record.target(),
+                record.args()
+            )
+        })
         //.format_timestamp(None)
         .format_timestamp_nanos()
         //.format_level(false)
@@ -101,10 +126,17 @@ fn init_logger() {
 #[tokio::main]
 async fn main() -> Result<()> {
     init_logger();
-    info!(x="45"; "Some message");
-    info!(x="12"; "Another message {x}", x="12");
-    #[cfg(debug_assertions)]
-    use std::io::Write;
+    //let opt = Opt::parse();
+    //info!(x="45"; "Some message");
+    //info!(x="12"; "Another message {x}", x="12");
+    //let data = (42, "Forty-two");
+    //let private_data = "private";
+
+    //log::log!(log::Level::Error, "Received errors: {}, {}", data.0, data.1);
+    //log::log!(target: "app_events", log::Level::Warn, "App warning: {}, {}, {}",
+    //data.0, data.1, private_data);
+
+    //#[cfg(debug_assertions)]
     //env_logger::builder()
     //  .format(|buf, record| writeln!(buf, "{}: {}", record.level(), record.args()))
     //.init();
@@ -112,8 +144,8 @@ async fn main() -> Result<()> {
     //env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
     //.format_timestamp(None)
     //.init();
-
     let opt = Opt::parse();
+
     let local_key = read_or_create_identity(Path::new(LOCAL_KEY_PATH))
         .await
         .context("Failed to read identity")?;
@@ -121,6 +153,7 @@ async fn main() -> Result<()> {
         .await
         .context("Failed to read certificate")?;
 
+    //topic from gnostr-chat --topic <string>
     let mut swarm = create_swarm(local_key, webrtc_cert, opt.topic.clone())?;
 
     let address_webrtc = Multiaddr::from(opt.listen_address)
@@ -140,15 +173,17 @@ async fn main() -> Result<()> {
 
     for addr in opt.connect {
         if let Err(e) = swarm.dial(addr.clone()) {
-            debug!("Failed to dial {addr}: {e}");
+            //debug!("Failed to dial {addr}: {e}");
+            trace!("Failed to dial {addr}: {e}");
         }
     }
 
     for peer in BOOTSTRAP_NODES {
-        info!("{}", peer);
+        print!("{}\n", peer);
         let multiaddr: Multiaddr = peer.parse().expect("Failed to parse Multiaddr");
         if let Err(e) = swarm.dial(multiaddr) {
-            debug!("Failed to dial {peer}: {e}");
+            //debug!("Failed to dial {peer}: {e}");
+            trace!("Failed to dial {peer}: {e}");
         }
     }
 
@@ -156,7 +191,7 @@ async fn main() -> Result<()> {
     let chat_topic_hash = gossipsub::IdentTopic::new(opt.topic).hash();
     let file_topic_hash = gossipsub::IdentTopic::new(GOSSIPSUB_CHAT_FILE_TOPIC).hash();
 
-    let mut tick = futures_timer::Delay::new(TICK_INTERVAL);
+    let mut tick = futures_timer::Delay::new(parse(opt.tick.clone()).expect("REASON"));
 
     loop {
         match select(swarm.next(), &mut tick).await {
@@ -171,13 +206,13 @@ async fn main() -> Result<()> {
                     }
 
                     let p2p_address = address.with(Protocol::P2p(*swarm.local_peer_id()));
-                    info!("Listening on {p2p_address}");
+                    print!("Listening on {p2p_address}");
                 }
                 SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                     debug!("Connected to {peer_id}");
                 }
                 SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                    debug!("Failed to dial {peer_id:?}: {error}");
+                    trace!("Failed to dial {peer_id:?}: {error}");
                 }
                 SwarmEvent::IncomingConnectionError { error, .. } => {
                     debug!("{:#}", anyhow::Error::from(error))
@@ -188,7 +223,7 @@ async fn main() -> Result<()> {
                     debug!("Removed {peer_id} from the routing table (if it was in there).");
                 }
                 SwarmEvent::Behaviour(BehaviourEvent::Relay(e)) => {
-                    debug!("{:?}", e);
+                    trace!("{:?}", e);
                 }
                 SwarmEvent::Behaviour(BehaviourEvent::Gossipsub(
                     libp2p::gossipsub::Event::Message {
@@ -203,23 +238,30 @@ async fn main() -> Result<()> {
                     if message.topic == chat_topic_hash {
                         debug!("message.topic={}", message.topic);
                         debug!("chat_topic_hash={}", chat_topic_hash);
-                        debug!(
+                        trace!(
                             "message.sequence_number={:?}\n",
                             message.sequence_number.unwrap() / 1000000000
                         );
-                        debug!(
+                        trace!(
                             "message.sequence_number={:?}\n",
                             message.sequence_number.unwrap() / 100000000
                         );
-                        debug!(
+                        trace!(
                             "message.sequence_number={:?}\n",
                             message.sequence_number.unwrap() / 10000000
                         );
-                        debug!(
+                        trace!(
                             "message.sequence_number={:?}\n",
                             message.sequence_number.unwrap() / 1000000
                         );
-                        debug!(
+                        //info!(
+                        //    "{}:{}:{:}:{}\n",
+                        //    message.topic,
+                        //    message.sequence_number.unwrap(),
+                        //    message.source.unwrap(),
+                        //    String::from_utf8(message.data).unwrap()
+                        //);
+                        print!(
                             "{}:{}:{:}:{}\n",
                             message.topic,
                             message.sequence_number.unwrap(),
@@ -247,7 +289,7 @@ async fn main() -> Result<()> {
 
                     if message.topic == file_topic_hash {
                         let file_id = String::from_utf8(message.data).unwrap();
-                        debug!("Received file {} from {:?}", file_id, message.source);
+                        info!("Received file {} from {:?}", file_id, message.source);
 
                         let request_id = swarm.behaviour_mut().request_response.send_request(
                             &message.source.unwrap(),
@@ -255,7 +297,7 @@ async fn main() -> Result<()> {
                                 file_id: file_id.clone(),
                             },
                         );
-                        debug!(
+                        info!(
                             "Requested file {} to {:?}: req_id:{:?}",
                             file_id, message.source, request_id
                         );
@@ -315,7 +357,7 @@ async fn main() -> Result<()> {
                                     .behaviour_mut()
                                     .kademlia
                                     .add_address(&peer_id, webrtc_address.clone());
-                                debug!("Added {webrtc_address} to the routing table.");
+                                trace!("Added {webrtc_address} to the routing table.");
                             }
                         }
                     }
@@ -356,10 +398,13 @@ async fn main() -> Result<()> {
                 }
             },
             Either::Right(_) => {
-                tick = futures_timer::Delay::new(TICK_INTERVAL);
+                //TICK
+                //
+		tick = futures_timer::Delay::new(parse(opt.tick.clone()).expect("REASON"));
 
-                debug!(
-                    "external addrs: {:?}",
+                //TODO format for nostr EVENT syndication
+                trace!(
+                    "{{ external_addresses: {:?}}}",
                     swarm.external_addresses().collect::<Vec<&Multiaddr>>()
                 );
 
@@ -367,19 +412,26 @@ async fn main() -> Result<()> {
                     debug!("Failed to run Kademlia bootstrap: {e:?}");
                 }
 
+                //NOW
+                //help: if used in a formatting string, curly braces are escaped with `{{` and `}}`
+
+                //debug!("{peer_id} subscribed to {topic}");
                 let now = tokio::time::Instant::now();
                 let message = format!(
-                    "Hello world! Sent from the gnostr-chat at: {:4}s",
-                    now.elapsed().as_secs_f64()
+                    "gnostr-chat ping: {:4}s",now.elapsed().as_secs_f64()
                 );
 
+                //TODO 
+                //TODO format for nostr EVENT syndication
+                // swarm.behaviour_mut().gosssip.publish(...
                 if let Err(err) = swarm.behaviour_mut().gossipsub.publish(
                     gossipsub::IdentTopic::new(chat_topic_hash.to_string()),
                     message.as_bytes(),
                 ) {
-                    error!("Failed to publish periodic message: {err}")
+                    //error!("Failed to publish periodic message: {err}")
+                    info!("Failed to publish periodic message: {err}")
                 }
-            }
+            }// END EITHER::Right
         }
     }
 }
@@ -519,4 +571,59 @@ async fn read_or_create_identity(path: &Path) -> Result<identity::Keypair> {
     info!("Generated new identity and wrote it to {}", path.display());
 
     Ok(identity)
+}
+
+pub fn add(left: usize, right: usize) -> usize {
+    left + right
+}
+pub fn greeting(name: &str) -> String {
+    format!("Hello {}!", name)
+}
+pub fn greeting_hello(name: &str) -> String {
+    //name not used!
+    String::from("Hello!")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(not(test))]
+    use log::{info, warn}; // Use log crate when building application
+
+    #[cfg(test)]
+    use std::{println as info, println as warn}; // Workaround to use prinltn! for logs.
+
+    #[test]
+    fn it_works() {
+        let result = add(2, 2);
+        assert_eq!(result, 4);
+        info!("{:?}", assert_eq!(result, 4));
+        warn!("{:?}", assert_eq!(result, 4));
+    }
+    #[test]
+    fn greeting_contains_name() {
+        let result1 = greeting("Carol");
+        assert!(result1.contains("Carol"));
+        let result2 = greeting_hello("Carol");
+        assert!(
+            result2.contains("Hello"),
+            "Greeting did not contain {}, value was `{}`",
+            result1,
+            result2
+        );
+    }
+    #[test]
+    #[should_panic]
+    fn greeting_contains_name_panic() {
+        let result1 = greeting("Carol");
+        assert!(result1.contains("Carol"));
+        let result2 = greeting_hello("Carol");
+        assert!(
+            result2.contains("Carol"),
+            "Greeting did not contain {}, value was `{}`",
+            result1,
+            result2
+        );
+    }
 }

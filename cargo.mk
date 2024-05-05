@@ -25,9 +25,15 @@ cargo-build:### 	cargo build
 .PHONY:chat
 chat:cargo-install### 	chat
 cargo-i:cargo-install
-cargo-install:### 	cargo install --path jj
+cargo-install:### 	cargo install --path chat
 	#@. $(HOME)/.cargo/env
 	@cargo install --path chat
+.PHONY:chat-test
+chat-test:cargo-install### 	chat
+cargo-t:cargo-test
+cargo-test:### 	cargo test --path chat
+	#@. $(HOME)/.cargo/env
+	@cargo test --manifest-path chat/Cargo.toml
 cargo-br:cargo-build-release### 	cargo-br
 ## 	cargo-br q=true
 cargo-build-release:### 	cargo-build-release
@@ -41,11 +47,10 @@ cargo-check:### 	cargo-check
 cargo-bench:### 	cargo-bench
 	@. $(HOME)/.cargo/env
 	@cd chat && cargo bench
-cargo-t:cargo-test
-cargo-test:### 	cargo-test
+cargo-t:cargo-test### 	cargo t:cargo-test
 	@. $(HOME)/.cargo/env
 	#@cargo test
-	@cd chat && cargo test -p jj-cli --test runner
+	@cd chat && cargo test -p gnostr-chat #--test it_works
 cargo-report:### 	cargo-report
 	@. $(HOME)/.cargo/env
 	cd chat && cargo report future-incompatibilities --id 1
