@@ -52,7 +52,7 @@ export RUSTUP_INIT_SKIP_PATH_CHECK
 export TOOLCHAIN
 export Z
 
-SUBMODULES=:$(shell cat .gitmodules 2>/dev/null | grep path | cut -d ' ' -f 3 || true)
+SUBMODULES=: $(shell cat .gitmodules 2>/dev/null | grep path | cut -d ' ' -f 3 || true)
 export SUBMODULES
 
 ifeq ($(verbose),true)
@@ -168,11 +168,11 @@ export GIT_REPO_PATH
 
 
 
-.PHONY:- help
+.PHONY: - help
 -:
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?##/ {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
-more:## 	more help
+more: ## 	more help
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/	/'
 	#$(MAKE) -f Makefile help
 
@@ -180,11 +180,11 @@ more:## 	more help
 
 ##initialize
 ##	git submodule update --init --recursive
-initialize:## 	ensure submodules exist
+initialize: ## 	ensure submodules exist
 	git submodule update --init --recursive
 
 .ONESHELL:
-docker-start:venv
+docker-start: venv
 ##docker-start
 ##	start docker on Linux or Darwin
 	@echo CI=$(CI)
@@ -212,7 +212,7 @@ docker-start:venv
 	done\
 	)
 
-detect:## 	install sequence got Darwin and Linux
+detect: ## 	install sequence got Darwin and Linux
 ##detect
 	bash -c "[ '$(shell uname -s)' == 'Darwin' ] && type -P brew >/tmp/gnostr.log && \
 		export LIBRARY_PATH='$(LIBRARY_PATH):$(brew --prefix)/lib' || echo"
@@ -427,7 +427,7 @@ report:## 	print make variables
 	@echo 'REUSE=${REUSE}'
 	@echo 'BIND=${BIND}'
 
-checkbrew:## 	install brew command
+checkbrew: ## 	install brew command
 ##	install brew command
 ifeq ($(HOMEBREW),)
 	@/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -438,8 +438,8 @@ else
 ##	make detect
 endif
 
-tag:## 	git tag & git push
-tags:tag
+tag: ## 	git tag & git push
+tags: tag
 ##tag
 ##	git tag $(OS)-$(OS_VERSION)-$(ARCH)-$(shell date +%s)
 	@git tag $(OS)-$(OS_VERSION)-$(ARCH)-$(shell date +%s)
